@@ -1,0 +1,26 @@
+coverage:
+  status:
+    project:
+      default:
+        target: 80%
+        threshold: 5%
+    patch:
+      default:
+        target: 80%
+        threshold: 5%
+
+ignore:
+  - "tests/**/*"
+  - "benches/**/*"
+  - "examples/**/*"
+  - "**/tests.rs"
+  - "**/test_*.rs"
+  - "src/main.rs"  # Often just bootstrapping code
+  - "src/lib.rs"   # Often just library setup code
+  - "src/ui/**/*"  # UI code might not be fully covered
+  - "src/app/**/*"  # Utility functions might not be fully covered
+
+comment:
+  layout: "reach,diff,flags,files,footer"
+  behavior: default
+  require_changes: true

@@ -1,0 +1,19 @@
+[package]
+name = "envx-tui"
+edition = "2024"
+version.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+license.workspace = true
+description.workspace = true
+readme.workspace = true
+homepage.workspace = true
+repository.workspace = true
+
+[dependencies]
+envx-core = { workspace = true }
+ratatui = { workspace = true }
+crossterm = { workspace = true }
+color-eyre = { workspace = true }
+tui-input = { workspace = true }
+tui-textarea = { workspace = true }

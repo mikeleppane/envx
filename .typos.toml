@@ -1,0 +1,108 @@
+# Configuration for typos-cli spell checker
+# https://github.com/crate-ci/typos
+
+[files]
+extend-exclude = [
+    "target/",
+    "*.lock",
+    "*.svg",
+    "*.png",
+    "*.jpg",
+    "*.jpeg",
+    "*.gif",
+    "*.ico",
+    "LICENSE*",
+    "crates/password-gen/src/lib.rs",
+]
+
+[default]
+# Locale to use for spell checking
+locale = "en-us"
+
+[default.extend-words]
+# Technical terms and abbreviations
+"ratatui" = "ratatui"
+"tui" = "tui"
+"tokio" = "tokio"
+"serde" = "serde"
+"clap" = "clap"
+"chrono" = "chrono"
+"crossterm" = "crossterm"
+"thiserror" = "thiserror"
+"anyhow" = "anyhow"
+"ahash" = "ahash"
+"nextest" = "nextest"
+"llvm" = "llvm"
+"codecov" = "codecov"
+"lcov" = "lcov"
+"clippy" = "clippy"
+"rustfmt" = "rustfmt"
+"msrv" = "msrv"
+"critcmp" = "critcmp"
+"bencher" = "bencher"
+"walkdir" = "walkdir"
+"blake3" = "blake3"
+"sha256" = "sha256"
+"md5" = "md5"
+
+# Project-specific terms
+"envx" = "envx"
+"mikeleppane" = "mikeleppane"
+"Leppänen" = "Leppänen"
+"Ratatui" = "Ratatui"
+
+# Common technical misspellings that are actually correct
+"impl" = "impl"
+"struct" = "struct"
+"enum" = "enum"
+"async" = "async"
+"fn" = "fn"
+"mut" = "mut"
+"Vec" = "Vec"
+"HashMap" = "HashMap"
+"PathBuf" = "PathBuf"
+"DateTime" = "DateTime"
+"Arc" = "Arc"
+"RwLock" = "RwLock"
+
+# File extensions and formats
+"toml" = "toml"
+"yaml" = "yaml"
+"yml" = "yml"
+"json" = "json"
+"md" = "md"
+"rs" = "rs"
+"EXIF" = "EXIF"
+"JPEG" = "JPEG"
+"PNG" = "PNG"
+"MP4" = "MP4"
+"MOV" = "MOV"
+
+# Common false positives
+"ba" = "ba" # often appears in hex strings
+"de" = "de" # often appears in hex strings
+
+
+[default.extend-identifiers]
+# Allow specific identifiers that might be flagged as typos
+"ser" = "ser"               # Serde serialization
+"de" = "de"                 # Serde deserialization  
+"datetime" = "datetime"
+"filepath" = "filepath"
+"filesize" = "filesize"
+"filetype" = "filetype"
+"metadata" = "metadata"
+"organizer" = "organizer"
+"subcommand" = "subcommand"
+
+[type.rust]
+extend-glob = ["*.rs"]
+check-filename = false # Don't check Rust filenames for typos
+
+[type.markdown]
+extend-glob = ["*.md", "*.markdown"]
+check-filename = false
+
+[type.toml]
+extend-glob = ["*.toml"]
+check-filename = false

@@ -1,0 +1,77 @@
+name: 🚀 Performance Issue
+description: Report performance problems or bottlenecks
+title: "[Performance]: "
+labels: ["performance", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Help us identify and fix performance issues in Envx.
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Performance Issue Description
+      description: Describe the performance problem you're experiencing
+      placeholder: |
+        Scanning large directories (10,000+ files) takes over 5 minutes...
+    validations:
+      required: true
+
+  - type: textarea
+    id: scenario
+    attributes:
+      label: Scenario Details
+      description: Provide details about your use case
+      placeholder: |
+        - Number of files: 50,000
+        - File types: Mixed (images, videos, documents)
+        - Directory structure: Deeply nested (5+ levels)
+        - Storage type: Network drive
+    validations:
+      required: true
+
+  - type: textarea
+    id: metrics
+    attributes:
+      label: Performance Metrics
+      description: Provide any measurements or benchmarks
+      placeholder: |
+        - Scan time: 5 minutes 30 seconds
+        - Memory usage: 2.5 GB
+        - CPU usage: 100% on single core
+
+  - type: dropdown
+    id: operation
+    attributes:
+      label: Affected Operation
+      options:
+        - File scanning
+        - Duplicate detection
+        - File organization/moving
+        - UI responsiveness
+        - Cache operations
+        - Other
+    validations:
+      required: true
+
+  - type: input
+    id: file-system
+    attributes:
+      label: File System Type
+      description: What file system are you using?
+      placeholder: e.g., ext4, NTFS, APFS, SMB/network share
+
+  - type: textarea
+    id: config
+    attributes:
+      label: Configuration
+      description: Paste relevant parts of your config.toml
+      render: toml
+
+  - type: textarea
+    id: profile
+    attributes:
+      label: Profiling Data
+      description: If you have profiling data, please share it
+      placeholder: Output from performance profiling tools, if available

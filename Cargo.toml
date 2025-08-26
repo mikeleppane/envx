@@ -1,0 +1,65 @@
+[workspace]
+members = ["crates/core", "crates/tui", "crates/cli", "crates/envx"]
+resolver = "2"
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.85"
+authors = ["Mikko Leppänen <mleppan23@gmail.com>"]
+license = "MIT"
+description = ""
+readme = "README.md"
+homepage = "https://github.com/mikeleppane/envx"
+repository = "https://github.com/mikeleppane/envx"
+
+[workspace.dependencies]
+envx-core = { path = "crates/core" }
+envx-cli = { path = "crates/cli" }
+envx-tui = { path = "crates/tui" }
+# Common dependencies
+thiserror = "2.0.16"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+chrono = { version = "0.4", features = ["serde"] }
+clap = { version = "4.5", features = ["derive", "env"] }
+indexmap = "2.11.0"
+uuid = { version = "1.18.0", features = ["v4", "serde"] }
+color-eyre = "0.6.5"
+regex = "1.11"
+tempfile = "3.21.0"
+
+# TUI dependencies
+ratatui = "0.29.0"
+crossterm = "0.29.0"
+tui-textarea = "0.7.0"
+comfy-table = "7.1"
+console = "0.16.0"
+tui-input = "0.14.0"
+
+# Platform-specific dependencies (to be used in individual crates)
+winreg = "0.55.0"
+nix = { version = "0.30.1", features = ["process", "env"] }
+
+[profile.release]
+opt-level = 3
+debug = false
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = true
+
+[profile.dev]
+opt-level = 0
+debug = false
+incremental = true
+codegen-units = 256
+
+[profile.dev.package."*"]
+opt-level = 3
+
+[profile.bench]
+inherits = "release"
+debug = true

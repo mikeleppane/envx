@@ -1,0 +1,36 @@
+name: Dependencies
+
+on:
+  schedule:
+    # Run every Monday at 8am UTC
+    - cron: '0 8 * * 1'
+  workflow_dispatch:
+
+jobs:
+  update:
+    name: Update Dependencies
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+      
+      - name: Update dependencies
+        run: cargo update
+      
+      - name: Test updated dependencies
+        run: cargo test --all-features
+      
+      - name: Create Pull Request
+        uses: peter-evans/create-pull-request@v5
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: "chore: update dependencies"
+          title: "Weekly dependency updates"
+          body: |
+            This PR updates the project dependencies to their latest versions.
+            
+            Please review the changes and ensure all tests pass before merging.
+          branch: deps/update
+          delete-branch: true

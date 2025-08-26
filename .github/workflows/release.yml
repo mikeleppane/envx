@@ -1,0 +1,160 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    name: Build and Release
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            artifact_name: envx
+            asset_name: envx-linux-amd64
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            artifact_name: envx.exe
+            asset_name: envx-windows-amd64.exe
+          - os: macos-latest
+            target: x86_64-apple-darwin
+            artifact_name: envx
+            asset_name: envx-macos-amd64
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-musl
+            artifact_name: envx
+            asset_name: envx-linux-amd64-static
+          - os: ubuntu-latest
+            target: aarch64-unknown-linux-gnu
+            artifact_name: envx
+            asset_name: envx-linux-arm64
+
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+      
+      - name: Install dependencies (Ubuntu)
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y lld clang
+
+      - name: Install MUSL targets
+        if: matrix.os == 'ubuntu-latest' && contains(matrix.target, 'musl')
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y musl-tools
+
+      - name: Install cross-compilation tools
+        if: matrix.os == 'ubuntu-latest' && contains(matrix.target, 'aarch64')
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc-aarch64-linux-gnu
+
+      - name: Configure cross-compilation environment
+        if: matrix.target == 'aarch64-unknown-linux-gnu'
+        run: |
+          echo "CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=aarch64-linux-gnu-gcc" >> $GITHUB_ENV
+          echo "CC_aarch64_unknown_linux_gnu=aarch64-linux-gnu-gcc" >> $GITHUB_ENV
+          echo "AR_aarch64_unknown_linux_gnu=aarch64-linux-gnu-ar" >> $GITHUB_ENV
+
+      - name: Configure cross-compilation environment for MUSL
+        if: matrix.target == 'aarch64-unknown-linux-musl'
+        run: |
+          echo "CARGO_TARGET_AARCH64_UNKNOWN_LINUX_MUSL_LINKER=aarch64-linux-gnu-gcc" >> $GITHUB_ENV
+          echo "CC_aarch64_unknown_linux_musl=aarch64-linux-gnu-gcc" >> $GITHUB_ENV
+          echo "AR_aarch64_unknown_linux_musl=aarch64-linux-gnu-ar" >> $GITHUB_ENV
+
+      - name: Build
+        run: cargo build --target ${{ matrix.target }} --release
+      
+      # Rename the binary to match the asset name to avoid conflicts
+      - name: Rename binary
+        run: |
+          if [ "${{ matrix.os }}" = "windows-latest" ]; then
+            # Windows binary already has .exe extension
+            cp ./target/${{ matrix.target }}/release/${{ matrix.artifact_name }} ./${{ matrix.asset_name }}
+          else
+            # Linux and macOS binaries
+            cp ./target/${{ matrix.target }}/release/${{ matrix.artifact_name }} ./${{ matrix.asset_name }}
+          fi
+        shell: bash
+      
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.asset_name }}
+          path: ./${{ matrix.asset_name }}
+
+  create-release:
+    name: Create Release
+    needs: build-and-release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: ./artifacts
+      
+      # Debug: List what was downloaded
+      - name: List artifacts
+        run: |
+          echo "Contents of ./artifacts:"
+          find ./artifacts -type f -ls
+      
+      # Move files to have unique names in the root artifacts directory
+      - name: Prepare release assets
+        run: |
+          mkdir -p release-assets
+          
+          # Move each file from its subdirectory to the release-assets directory
+          # The subdirectories are named after the artifact names
+          if [ -f "./artifacts/envx-linux-amd64/envx-linux-amd64" ]; then
+            cp "./artifacts/envx-linux-amd64/envx-linux-amd64" ./release-assets/
+          fi
+          
+          if [ -f "./artifacts/envx-windows-amd64.exe/envx-windows-amd64.exe" ]; then
+            cp "./artifacts/envx-windows-amd64.exe/envx-windows-amd64.exe" ./release-assets/
+          fi
+          
+          if [ -f "./artifacts/envx-macos-amd64/envx-macos-amd64" ]; then
+            cp "./artifacts/envx-macos-amd64/envx-macos-amd64" ./release-assets/
+          fi
+          
+          # Add the new MUSL static binary
+          if [ -f "./artifacts/envx-linux-amd64-static/envx-linux-amd64-static" ]; then
+            cp "./artifacts/envx-linux-amd64-static/envx-linux-amd64-static" ./release-assets/
+          fi
+          
+          # Add the new ARM64 binary
+          if [ -f "./artifacts/envx-linux-arm64/envx-linux-arm64" ]; then
+            cp "./artifacts/envx-linux-arm64/envx-linux-arm64" ./release-assets/
+          fi
+          
+          echo "Contents of ./release-assets:"
+          ls -la ./release-assets/
+      
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: Release ${{ github.ref_name }}
+          draft: false
+          prerelease: false
+          files: ./release-assets/*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

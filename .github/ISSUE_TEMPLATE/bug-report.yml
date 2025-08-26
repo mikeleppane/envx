@@ -1,0 +1,122 @@
+name: 🐛 Bug Report
+description: Report a bug or unexpected behavior in Envx
+title: "[Bug]: "
+labels: ["bug", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report a bug! Please fill out the information below to help us understand and fix the issue.
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Bug Description
+      description: A clear and concise description of what the bug is
+      placeholder: |
+        When I try to organize files by type, the application crashes...
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Steps to Reproduce
+      description: Steps to reproduce the behavior
+      placeholder: |
+        1. Launch Envx
+        2. Go to Settings (press 's')
+        3. Select "By Type" organization mode
+        4. Start organizing (press 'o')
+        5. See error
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected Behavior
+      description: What you expected to happen
+      placeholder: Files should be organized into type-based folders (Images/, Videos/, Documents/, etc.)
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual Behavior
+      description: What actually happened
+      placeholder: The application crashes with a panic error
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Error Messages / Logs
+      description: Please paste any error messages or relevant logs
+      render: shell
+      placeholder: |
+        thread 'main' panicked at 'called `Result::unwrap()` on an `Err` value...
+
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating System
+      options:
+        - Linux (Ubuntu/Debian)
+        - Linux (Fedora/RHEL)
+        - Linux (Arch)
+        - Linux (Other)
+        - macOS 14 (Sonoma)
+        - macOS 13 (Ventura)
+        - macOS 12 (Monterey)
+        - macOS (Other)
+        - Windows 11
+        - Windows 10
+        - Other
+    validations:
+      required: true
+
+  - type: input
+    id: rust-version
+    attributes:
+      label: Rust Version
+      description: Output of `rustc --version`
+      placeholder: rustc 1.85.0 (a4cb52f33 2024-12-05)
+    validations:
+      required: true
+
+  - type: input
+    id: terminal
+    attributes:
+      label: Terminal Emulator
+      description: Which terminal are you using?
+      placeholder: e.g., Alacritty, iTerm2, Windows Terminal, Gnome Terminal
+
+  - type: input
+    id: envx-version
+    attributes:
+      label: Envx Version
+      description: Version or commit hash
+      placeholder: v0.1.0 or commit abc123
+    validations:
+      required: true
+
+  - type: textarea
+    id: additional
+    attributes:
+      label: Additional Context
+      description: Add any other context about the problem here
+      placeholder: This started happening after I updated to the latest version...
+
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: Checklist
+      options:
+        - label: I have searched for similar issues and didn't find any duplicates
+          required: true
+        - label: I have tested with the latest version of Envx
+          required: true
+        - label: I can reproduce this issue consistently

@@ -1,0 +1,32 @@
+[package]
+name = "envx-core"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+description = "Core library for Envx"
+keywords = ["core", "envx", "domain", "library"]
+readme = "README.md"
+
+[dependencies]
+indexmap = { workspace = true }
+thiserror = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+chrono = { workspace = true }
+tracing = { workspace = true }
+uuid = { workspace = true }
+color-eyre = { workspace = true }
+regex = { workspace = true }
+
+[target.'cfg(windows)'.dependencies]
+winreg = { workspace = true }
+
+[target.'cfg(unix)'.dependencies]
+nix = { workspace = true }
+
+[dev-dependencies]
+tempfile = { workspace = true }

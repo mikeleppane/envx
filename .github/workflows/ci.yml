@@ -1,0 +1,307 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+
+jobs:
+  typos:
+    name: Typo Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Check for typos
+        uses: crate-ci/typos@master
+        with:
+          config: .typos.toml
+      
+      - name: Typo report
+        if: failure()
+        run: |
+          echo "## 📝 Typo Check Failed" >> $GITHUB_STEP_SUMMARY
+          echo "Found typos in the codebase. Please fix them before merging." >> $GITHUB_STEP_SUMMARY
+          echo "You can run 'typos' locally to find and fix typos." >> $GITHUB_STEP_SUMMARY
+
+  markdown-lint:
+    name: Markdown Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Need full history to detect file changes
+      
+      - name: Get changed files
+        id: changed-files
+        uses: tj-actions/changed-files@v44
+        with:
+          files: |
+            **/*.md
+            **/*.markdown
+      
+      - name: List changed markdown files
+        if: steps.changed-files.outputs.any_changed == 'true'
+        run: |
+          echo "## 📝 Changed Markdown Files" >> $GITHUB_STEP_SUMMARY
+          echo "The following markdown files were changed:" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          for file in ${{ steps.changed-files.outputs.all_changed_files }}; do
+            echo "$file" >> $GITHUB_STEP_SUMMARY
+          done
+          echo '```' >> $GITHUB_STEP_SUMMARY
+      
+      - name: Run markdownlint
+        if: steps.changed-files.outputs.any_changed == 'true'
+        uses: DavidAnson/markdownlint-cli2-action@v16
+        with:
+          globs: ${{ steps.changed-files.outputs.all_changed_files }}
+          config: .markdownlint.yml
+          fix: false
+      
+      - name: Skip message
+        if: steps.changed-files.outputs.any_changed == 'false'
+        run: |
+          echo "## ✅ Markdown Lint Skipped" >> $GITHUB_STEP_SUMMARY
+          echo "No markdown files were changed in this PR." >> $GITHUB_STEP_SUMMARY
+
+  format:
+    name: Format Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt
+      
+      - name: Check formatting
+        run: cargo fmt --all -- --check
+
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+      
+      - name: Cache cargo registry
+        uses: actions/cache@v4
+        with:
+          path: ~/.cargo/registry
+          key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
+      
+      - name: Cache cargo index
+        uses: actions/cache@v4
+        with:
+          path: ~/.cargo/git
+          key: ${{ runner.os }}-cargo-index-${{ hashFiles('**/Cargo.lock') }}
+      
+      - name: Cache cargo build
+        uses: actions/cache@v4
+        with:
+          path: target
+          key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('**/Cargo.lock') }}
+      
+      - name: Run clippy
+        run: cargo clippy --all-targets --all-features -- -D warnings
+
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: taiki-e/install-action@nextest
+      - run: cargo nextest run --workspace --profile ci
+
+  coverage:
+    name: Code Coverage
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: llvm-tools-preview
+      
+      - name: Install cargo-llvm-cov
+        uses: taiki-e/install-action@cargo-llvm-cov
+      
+      - name: Install nextest
+        uses: taiki-e/install-action@nextest
+      
+      - name: Cache cargo registry
+        uses: actions/cache@v4
+        with:
+          path: ~/.cargo/registry
+          key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
+      
+      - name: Cache cargo index
+        uses: actions/cache@v4
+        with:
+          path: ~/.cargo/git
+          key: ${{ runner.os }}-cargo-index-${{ hashFiles('**/Cargo.lock') }}
+      
+      - name: Cache cargo build
+        uses: actions/cache@v4
+        with:
+          path: target
+          key: ${{ runner.os }}-cargo-build-coverage-${{ hashFiles('**/Cargo.lock') }}
+      
+      - name: Generate code coverage
+        run: cargo llvm-cov nextest --all-features --workspace --lcov --output-path lcov.info --verbose
+      
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v3
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: lcov.info
+          fail_ci_if_error: false  # Don't fail CI if upload fails
+          verbose: true
+        continue-on-error: true
+      
+      - name: Generate HTML report
+        run: cargo llvm-cov report --html
+        
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: target/llvm-cov/html/
+
+
+  build:
+    name: Build Check
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+          - os: macos-latest
+            target: x86_64-apple-darwin
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+      
+      - name: Cache cargo registry
+        uses: actions/cache@v4
+        with:
+          path: ~/.cargo/registry
+          key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
+      
+      - name: Cache cargo index
+        uses: actions/cache@v4
+        with:
+          path: ~/.cargo/git
+          key: ${{ runner.os }}-cargo-index-${{ hashFiles('**/Cargo.lock') }}
+      
+      - name: Cache cargo build
+        uses: actions/cache@v4
+        with:
+          path: target
+          key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('**/Cargo.lock') }}
+      - name: Install dependencies (Ubuntu)
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y lld clang
+
+      - name: Install dependencies (Windows)
+        if: matrix.os == 'windows-latest'
+        run: |
+          choco install llvm -y
+          echo "C:\Program Files\LLVM\bin" >> $GITHUB_PATH
+
+      - name: Install dependencies (macOS)
+        if: matrix.os == 'macos-latest'
+        run: |
+          brew install llvm
+          echo "/usr/local/opt/llvm/bin" >> $GITHUB_PATH
+      - name: Build
+        run: cargo build --target ${{ matrix.target }} --release --verbose
+
+  security:
+    name: Security Audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+      
+      - name: Install cargo-audit
+        run: cargo install cargo-audit
+      
+      - name: Run security audit
+        run: cargo audit
+        continue-on-error: true
+
+  unused-deps:
+    name: Unused Dependencies Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+      
+      - name: Cache cargo registry
+        uses: actions/cache@v4
+        with:
+          path: ~/.cargo/registry
+          key: ${{ runner.os }}-cargo-registry-unused-deps-${{ hashFiles('**/Cargo.lock') }}
+      
+      - name: Install cargo-machete
+        run: cargo install cargo-machete
+      
+      - name: Check for unused dependencies
+        run: |
+          echo "## Unused Dependencies Report" >> $GITHUB_STEP_SUMMARY
+          cargo machete --with-metadata 2>&1 | tee unused_deps_report.txt
+          
+          # Add results to step summary
+          if grep -q "Found unused dependencies" unused_deps_report.txt; then
+            echo "⚠️ **Unused dependencies found:**" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            cat unused_deps_report.txt >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+          else
+            echo "✅ **No unused dependencies found**" >> $GITHUB_STEP_SUMMARY
+          fi
+      
+      - name: Upload unused dependencies report
+        uses: actions/upload-artifact@v4
+        with:
+          name: unused-dependencies-report
+          path: unused_deps_report.txt
+        if: always()
+
+  msrv:
+    name: Minimum Supported Rust Version
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Install Rust 1.85
+        uses: dtolnay/rust-toolchain@1.85
+
+      - name: Check MSRV
+        run: cargo check --all-features

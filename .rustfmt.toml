@@ -1,0 +1,8 @@
+# Rustfmt configuration
+edition = "2024"
+max_width = 120
+tab_spaces = 4
+use_small_heuristics = "Default"
+reorder_imports = true
+reorder_modules = true
+remove_nested_parens = true

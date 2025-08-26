@@ -1,0 +1,82 @@
+name: ✨ Feature Request
+description: Suggest a new feature or enhancement for Envx
+title: "[Feature]: "
+labels: ["enhancement", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for suggesting a feature! Please provide as much detail as possible.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem Statement
+      description: Describe the problem or use case this feature would solve
+      placeholder: |
+        Currently, there's no way to exclude certain file types from organization...
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed Solution
+      description: Describe your proposed solution or feature
+      placeholder: |
+        Add a file type exclusion list in settings where users can specify extensions to ignore...
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternative Solutions
+      description: Have you considered any alternative solutions?
+      placeholder: |
+        Another option would be to use a .envxtignore file similar to .gitignore...
+
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Priority
+      description: How important is this feature to you?
+      options:
+        - Nice to have
+        - Would significantly improve my workflow
+        - Critical for my use case
+
+  - type: dropdown
+    id: contribution
+    attributes:
+      label: Willing to Contribute?
+      description: Would you be willing to help implement this feature?
+      options:
+        - "Yes, I can implement this feature"
+        - "Yes, I can help test it"
+        - "No, but I can provide more details if needed"
+
+  - type: textarea
+    id: mockup
+    attributes:
+      label: UI/UX Mockup
+      description: If applicable, provide a mockup or sketch of how this feature might look
+      placeholder: |
+        Settings > Filters Tab:
+        
+        [ ] Enable file exclusions
+        
+        Excluded extensions:
+        [.tmp] [x]
+        [.cache] [x]
+        [Add extension...]
+
+  - type: textarea
+    id: use-cases
+    attributes:
+      label: Use Cases
+      description: Provide specific examples of how you would use this feature
+      placeholder: |
+        1. Exclude temporary files (.tmp, .cache) from being organized
+        2. Skip system files that shouldn't be moved
+        3. Ignore specific project files that need to stay in place

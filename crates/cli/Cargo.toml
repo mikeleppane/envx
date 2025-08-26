@@ -1,0 +1,23 @@
+[package]
+name = "envx-cli"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+description = "Command line interface for managing environment variables"
+keywords = ["envx", "cli", "command line", "tool"]
+readme = "README.md"
+
+[dependencies]
+envx-core = { workspace = true }
+envx-tui = { workspace = true }
+clap = { workspace = true }
+serde_json = { workspace = true }
+tracing = { workspace = true }
+color-eyre = { workspace = true }
+uuid = { workspace = true }
+comfy-table = { workspace = true }
+console = { workspace = true }

@@ -1,0 +1,40 @@
+name: ❓ Question
+description: Ask a question about Envx
+title: "[Question]: "
+labels: ["question"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Before asking a question, please check:
+        - The README and documentation
+        - Existing issues and discussions
+        - The FAQ (if available)
+
+  - type: textarea
+    id: question
+    attributes:
+      label: Your Question
+      description: What would you like to know?
+      placeholder: How can I organize files by both type and date?
+    validations:
+      required: true
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Context
+      description: Provide any relevant context or what you've already tried
+      placeholder: |
+        I've tried using the "By Type" mode but I also want to keep files organized by year...
+
+  - type: dropdown
+    id: category
+    attributes:
+      label: Question Category
+      options:
+        - Installation/Setup
+        - Configuration
+        - Usage
+        - Development/Contributing
+        - Other

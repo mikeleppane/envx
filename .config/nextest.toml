@@ -1,0 +1,19 @@
+[profile.default]
+# Number of threads to use for running tests
+test-threads = "num-cpus"
+
+# How long to wait before timing out tests
+slow-timeout = { period = "30s", terminate-after = 2 }
+
+# Show output for failing tests
+failure-output = "immediate-final"
+
+# Retry flaky tests
+retries = 1
+
+[profile.ci]
+# CI profile with stricter settings
+test-threads = 2
+slow-timeout = { period = "10s", terminate-after = 1 }
+failure-output = "final"
+retries = 3

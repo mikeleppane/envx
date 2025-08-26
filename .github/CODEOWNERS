@@ -1,0 +1,107 @@
+# CODEOWNERS for envx
+# This file defines who is responsible for code review in different parts of the project.
+# Each line is a file pattern followed by one or more owners.
+# Order matters: the last matching pattern takes precedence.
+
+# Default owners for everything in the repo
+# These owners will be requested for review when someone opens a pull request
+* @mikeleppane
+
+# Documentation
+# All documentation should be reviewed by maintainers and doc team
+*.md @mikeleppane @envx/docs-team
+/docs/ @mikeleppane @envx/docs-team
+README.md @mikeleppane @envx/core-team
+CONTRIBUTING.md @mikeleppane @envx/core-team
+
+# Core library
+# The core functionality requires careful review
+/crates/core/ @mikeleppane @envx/core-team
+/crates/core/src/lib.rs @mikeleppane
+/crates/core/src/manager.rs @mikeleppane
+/crates/core/src/error.rs @mikeleppane @envx/core-team
+
+# CLI implementation
+# Command-line interface changes
+/crates/cli/ @mikeleppane @envx/cli-team
+/crates/cli/src/commands/ @mikeleppane @envx/cli-team
+/crates/cli/src/lib.rs @mikeleppane
+
+# TUI implementation
+# Terminal UI requires UX review
+/crates/tui/ @mikeleppane @envx/tui-team
+/crates/tui/src/app.rs @mikeleppane @envx/tui-team
+/crates/tui/src/ui.rs @mikeleppane @envx/tui-team @envx/ux-team
+
+# Main binary
+/crates/envx/ @mikeleppane @envx/core-team
+
+# Configuration files
+# Important project configuration requires admin review
+Cargo.toml @mikeleppane @envx/core-team
+Cargo.lock @mikeleppane
+rustfmt.toml @mikeleppane @envx/core-team
+clippy.toml @mikeleppane @envx/core-team
+deny.toml @mikeleppane @envx/security-team
+
+# CI/CD
+# Changes to CI/CD require DevOps review
+/.github/ @mikeleppane @envx/devops-team
+/.github/workflows/ @mikeleppane @envx/devops-team
+/.github/ISSUE_TEMPLATE/ @mikeleppane @envx/core-team
+/.github/PULL_REQUEST_TEMPLATE.md @mikeleppane @envx/core-team
+
+# Security-sensitive files
+# Security-related changes need security team review
+/crates/core/src/crypto.rs @mikeleppane @envx/security-team
+/crates/core/src/security/ @mikeleppane @envx/security-team
+SECURITY.md @mikeleppane @envx/security-team
+
+# Build and deployment
+/scripts/ @mikeleppane @envx/devops-team
+/Dockerfile @mikeleppane @envx/devops-team
+/.dockerignore @mikeleppane @envx/devops-team
+
+# Test files
+# Tests can be reviewed by any core team member
+**/tests/ @envx/core-team
+**/benches/ @envx/core-team @envx/performance-team
+/tests/ @envx/core-team
+
+# Platform-specific code
+# Platform maintainers should review their specific code
+/crates/core/src/platform/windows.rs @mikeleppane @envx/windows-team
+/crates/core/src/platform/macos.rs @mikeleppane @envx/macos-team
+/crates/core/src/platform/linux.rs @mikeleppane @envx/linux-team
+
+# Import/Export functionality
+# Data format handling needs careful review
+/crates/core/src/export/ @mikeleppane @envx/core-team
+/crates/core/src/import/ @mikeleppane @envx/core-team
+
+# Dependencies
+# Dependency changes need security review
+**/Cargo.toml @mikeleppane @envx/security-team
+
+# License and legal
+LICENSE @mikeleppane
+NOTICE @mikeleppane
+PATENTS @mikeleppane
+
+# Community files
+CODE_OF_CONDUCT.md @mikeleppane @envx/community-team
+.github/FUNDING.yml @mikeleppane
+
+# Release files
+CHANGELOG.md @mikeleppane @envx/core-team
+/release/ @mikeleppane @envx/release-team
+
+# Benchmarking and performance
+/benches/ @mikeleppane @envx/performance-team
+/perf/ @mikeleppane @envx/performance-team
+
+# External integrations
+/crates/integrations/ @mikeleppane @envx/integrations-team
+
+# Example code
+/examples/ @mikeleppane @envx/docs-team

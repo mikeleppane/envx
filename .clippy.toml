@@ -1,0 +1,31 @@
+# Clippy configuration file
+
+# Set the maximum cognitive complexity allowed
+cognitive-complexity-threshold = 30
+
+# Set the maximum number of lines for functions
+too-many-lines-threshold = 100
+
+# Set the maximum number of arguments for functions
+too-many-arguments-threshold = 7
+
+# Configure type complexity threshold
+type-complexity-threshold = 250
+
+# Disallow certain macros
+disallowed-macros = [
+    # { path = "std::print", reason = "use tracing macros instead" },
+    # { path = "std::println", reason = "use tracing macros instead" },
+]
+
+# Enforce MSRV (Minimum Supported Rust Version)
+msrv = "1.85.0"
+
+# Allow certain names that would normally trigger warnings
+allowed-duplicate-crates = []
+
+# Configure large array/type thresholds
+array-size-threshold = 512000 # 500KB
+
+# Enforce documentation for public items
+warn-on-all-wildcard-imports = true

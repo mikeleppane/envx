@@ -1,0 +1,71 @@
+# Rust build artifacts
+/target
+target/
+
+# IDE and Editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# OS specific files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+
+# Test artifacts and coverage
+/coverage
+/tarpaulin-report.html
+*.profraw
+*.profdata
+
+# Backup files
+*.bak
+*.tmp
+*.temp
+*.backup
+
+# Log files
+*.log
+logs/
+
+# Environment and configuration
+.env
+.env.local
+.env.*.local
+config.json
+
+# Benchmark results
+benches/results/
+criterion/
+
+# Documentation build
+/book
+/mdbook
+
+# Rust analyzer cache
+.rust-analyzer/
+
+# Flamegraph output
+flamegraph.svg
+perf.data*
+
+# Memory profiling
+heaptrack.*
+massif.*
+
+# Security scanning results
+audit.json
+
+# Python
+
+/venv
+.venv

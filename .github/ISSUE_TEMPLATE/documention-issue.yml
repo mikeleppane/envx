@@ -1,0 +1,55 @@
+name: 📚 Documentation Issue
+description: Report issues or suggest improvements for documentation
+title: "[Docs]: "
+labels: ["documentation"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Help us improve our documentation!
+
+  - type: dropdown
+    id: doc-type
+    attributes:
+      label: Documentation Type
+      options:
+        - README
+        - Code comments
+        - API documentation
+        - User guide
+        - Contributing guide
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: issue
+    attributes:
+      label: What's Wrong or Missing?
+      description: Describe the documentation issue
+      placeholder: |
+        The README doesn't explain how to configure custom organization patterns...
+    validations:
+      required: true
+
+  - type: textarea
+    id: suggestion
+    attributes:
+      label: Suggested Improvement
+      description: How should we fix or improve this?
+      placeholder: |
+        Add a section about custom organization patterns with examples...
+
+  - type: input
+    id: location
+    attributes:
+      label: Location
+      description: Where in the documentation is this issue?
+      placeholder: README.md, line 150
+
+  - type: checkboxes
+    id: contribute
+    attributes:
+      label: Contribution
+      options:
+        - label: I can submit a PR to fix this documentation issue

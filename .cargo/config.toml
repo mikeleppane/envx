@@ -1,0 +1,87 @@
+[target.'cfg(all())']
+rustflags = [
+    "-Dwarnings",
+    "-Dclippy::all",
+    "-Dclippy::pedantic",
+    "-Aclippy::similar_names",
+    "-Aclippy::too_many_arguments",
+    "-Aclippy::type_complexity",
+    "-Dclippy::needless_pass_by_value",
+    "-Dclippy::redundant_allocation",
+    "-Dclippy::unused_async",
+    "-Dclippy::significant_drop_tightening",
+    #"-Dclippy::expect_used",
+    #"-Dclippy::unwrap_used",
+    "-Dclippy::await_holding_lock",
+    "-Dclippy::unnecessary_unwrap",
+
+    # Performance improvements
+    "-Dclippy::inefficient_to_string",
+    "-Dclippy::large_stack_arrays",
+    "-Dclippy::large_types_passed_by_value",
+    "-Dclippy::manual_memcpy",
+    "-Dclippy::redundant_clone",
+    "-Dclippy::trivially_copy_pass_by_ref",
+
+    # Error handling
+    "-Dclippy::panic",
+    #"-Dclippy::panic_in_result_fn",
+    #"-Dclippy::unwrap_in_result",
+
+    # Code clarity
+    "-Dclippy::cognitive_complexity",
+    "-Dclippy::if_not_else",
+    "-Dclippy::implicit_clone",
+    "-Dclippy::map_unwrap_or",
+    "-Dclippy::match_same_arms",
+    "-Dclippy::semicolon_if_nothing_returned",
+
+    # Documentation
+    "-Dclippy::missing_errors_doc",
+    "-Dclippy::missing_panics_doc",
+
+    # Safety and correctness
+    "-Dclippy::mem_forget",
+    "-Dclippy::mutex_integer",
+    "-Dclippy::rc_buffer",
+    "-Dclippy::rest_pat_in_fully_bound_structs",
+
+    # Style consistency
+    "-Dclippy::inconsistent_struct_constructor",
+    "-Dclippy::separated_literal_suffix",
+
+    # Additional allows for practical reasons
+    "-Aclippy::module_name_repetitions",
+    "-Dclippy::must_use_candidate",
+    "-Dclippy::missing_const_for_fn",
+]
+
+[target.'cfg(test)']
+rustflags = [
+    "-Aclippy::unwrap_used",
+    "-Aclippy::expect_used",
+    "-Aclippy::panic",
+    "-Aclippy::assertions_on_constants",
+    "-Aclippy::too_many_lines",
+    "-Aclippy::assertions_on_constants",       # OK in tests
+    "-Aclippy::too_many_lines",                # Tests can be longer
+    "-Aclippy::cognitive_complexity",          # Tests can be complex
+    "-Aclippy::missing_docs_in_private_items",
+    "-Aclippy::panic_in_result_fn",
+    "-Aclippy::unwrap_in_result",
+]
+
+
+[target.x86_64-unknown-linux-gnu]
+linker = "clang"
+rustflags = ["-C", "link-arg=-fuse-ld=lld"]
+
+[target.x86_64-pc-windows-msvc]
+
+[target.x86_64-pc-windows-gnu]
+linker = "x86_64-w64-mingw32-gcc"
+
+[target.x86_64-apple-darwin]
+
+[alias]
+t = "nextest run"

@@ -73,7 +73,7 @@ impl EnvVarManager {
         self.load_windows_vars();
 
         #[cfg(unix)]
-        let _ = self.load_unix_vars();
+        self.load_unix_vars();
 
         Ok(())
     }

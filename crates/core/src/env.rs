@@ -807,7 +807,7 @@ mod tests {
         let mut manager = EnvVarManager::new();
 
         // Set a mock shell variable
-        std::env::set_var("BASH_VERSION", "5.0.0");
+        unsafe { std::env::set_var("BASH_VERSION", "5.0.0") };
 
         manager.load_unix_vars();
 
@@ -816,7 +816,7 @@ mod tests {
         }
 
         // Clean up
-        std::env::remove_var("BASH_VERSION");
+        unsafe { std::env::remove_var("BASH_VERSION") };
     }
 
     #[test]

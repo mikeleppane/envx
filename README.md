@@ -442,4 +442,4 @@ RUST_LOG=debug envx list
 
 ---
 
-<p align="center">Made with ❤️ and Rust</p>
+<p align="center">Written with ❤️ in Rust & built with Ratatui</p>

@@ -247,7 +247,7 @@ impl EnvVarManager {
             Self::set_windows_var(name, value, false)?;
 
             #[cfg(unix)]
-            Self::set_unix_var(name, value)?;
+            Self::set_unix_var(name, value);
         }
 
         Ok(())
@@ -809,7 +809,7 @@ mod tests {
         // Set a mock shell variable
         std::env::set_var("BASH_VERSION", "5.0.0");
 
-        manager.load_unix_vars().unwrap();
+        manager.load_unix_vars();
 
         if let Some(var) = manager.get("BASH_VERSION") {
             assert_eq!(var.source, EnvVarSource::Shell);

@@ -73,7 +73,7 @@ impl EnvVarManager {
         self.load_windows_vars();
 
         #[cfg(unix)]
-        self.load_unix_vars();
+        let _ = self.load_unix_vars();
 
         Ok(())
     }
@@ -120,7 +120,7 @@ impl EnvVarManager {
     }
 
     #[cfg(unix)]
-    fn load_unix_vars(&mut self) -> Result<()> {
+    fn load_unix_vars(&mut self) {
         // On Unix, we primarily work with process environment
         // Shell-specific vars can be detected by checking common patterns
         for (key, value) in std::env::vars() {
@@ -141,7 +141,6 @@ impl EnvVarManager {
                 },
             );
         }
-        Ok(())
     }
 
     #[must_use]
@@ -248,7 +247,7 @@ impl EnvVarManager {
             Self::set_windows_var(name, value, false)?;
 
             #[cfg(unix)]
-            self.set_unix_var(name, value)?;
+            Self::set_unix_var(name, value)?;
         }
 
         Ok(())
@@ -292,13 +291,12 @@ impl EnvVarManager {
     }
 
     #[cfg(unix)]
-    fn set_unix_var(&self, name: &str, value: &str) -> Result<()> {
+    fn set_unix_var(name: &str, value: &str) {
         // On Unix, we'd typically need to modify shell config files
         // This is a simplified version - real implementation would handle
         // .bashrc, .zshrc, etc.
         println!("Note: To make this permanent on Unix, add to your shell config:");
-        println!("export {}=\"{}\"", name, value);
-        Ok(())
+        println!("export {name}=\"{value}\"");
     }
 
     /// Deletes an environment variable by name.

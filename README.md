@@ -8,7 +8,7 @@
 A powerful and secure environment variable manager for developers, featuring an intuitive Terminal User Interface (TUI)
 and comprehensive command-line interface.
 
-### 📸 Screenshots
+## 📸 Screenshots
 
 <p align="center">
   <img src="images/main.png" alt="Envx's Main Page" />

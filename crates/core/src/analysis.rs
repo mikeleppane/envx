@@ -201,7 +201,7 @@ impl PathAnalyzer {
             #[cfg(unix)]
             {
                 if path_str.contains('\\') {
-                    warnings.push(format!("Path uses Windows-style separators on Unix: {}", path_str));
+                    warnings.push(format!("Path uses Windows-style separators on Unix: {path_str}"));
                 }
             }
         }

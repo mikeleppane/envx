@@ -50,6 +50,7 @@ locale = "en-us"
 "mikeleppane" = "mikeleppane"
 "Leppänen" = "Leppänen"
 "Ratatui" = "Ratatui"
+"HOM" = "HOM"
 
 # Common technical misspellings that are actually correct
 "impl" = "impl"

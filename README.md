@@ -54,7 +54,7 @@ cargo install --path crates/envx
 ### Using Cargo
 
 ```bash
-cargo install envx
+cargo install envex
 ```
 
 ### Pre-built Binaries
@@ -324,6 +324,70 @@ envx import variables.yaml --format yaml
 # Import from .env file
 envx import .env --format env
 ```
+
+#### `profiles` - Manage environment profiles
+
+```bash
+Manage environment profiles
+
+Usage: envx.exe profile <COMMAND>
+
+Commands:
+  create  Create a new profile
+  list    List all profiles
+  show    Show current or specific profile
+  switch  Switch to a profile
+  add     Add a variable to a profile
+  remove  Remove a variable from a profile
+  delete  Delete a profile
+  export  Export a profile
+  import  Import a profile
+  apply   Apply a profile to current environment
+  help    Print this message or the help of the given subcommand(s)
+
+Options:
+  -h, --help  Print help
+```
+
+```bash
+envx profile create dev
+envx profile add dev NODE_ENV development
+envx profile switch dev --apply
+
+envx profile export dev > dev-profile.json
+```
+
+#### `snapshots` - Manage environment snapshots
+
+```bash
+Manage environment snapshots
+
+Usage: envx.exe snapshot <COMMAND>
+
+Commands:
+  create   Create a new snapshot
+  list     List all snapshots
+  show     Show details of a snapshot
+  restore  Restore from a snapshot
+  delete   Delete a snapshot
+  diff     Compare two snapshots
+  help     Print this message or the help of the given subcommand(s)
+
+Options:
+  -h, --help  Print help
+```
+
+```bash
+# Create a snapshot before deployment
+envx snapshot create "pre-deployment-v1.2"
+
+# Restore if something goes wrong
+envx snapshot restore "pre-deployment-v1.2"
+
+# Compare snapshots
+envx snapshot diff "pre-deployment-v1.2" "current"
+```
+
 
 ## 🎮 TUI Keyboard Shortcuts
 

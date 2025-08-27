@@ -8,15 +8,17 @@ edition = "2024"
 rust-version = "1.85"
 authors = ["Mikko Leppänen <mleppan23@gmail.com>"]
 license = "MIT"
-description = ""
+description = "A modern, cross-platform environment variable manager with TUI and CLI interfaces"
 readme = "README.md"
 homepage = "https://github.com/mikeleppane/envx"
 repository = "https://github.com/mikeleppane/envx"
+keywords = ["environment", "env", "cli", "tui", "cross-platform"]
+categories = ["command-line-utilities", "development-tools"]
 
 [workspace.dependencies]
-envx-core = { path = "crates/core" }
-envx-cli = { path = "crates/cli" }
-envx-tui = { path = "crates/tui" }
+envx-core = { path = "crates/core", version = "=0.2.0" }
+envx-cli = { path = "crates/cli", version = "=0.2.0" }
+envx-tui = { path = "crates/tui", version = "=0.2.0" }
 # Common dependencies
 thiserror = "2.0.16"
 serde = { version = "1.0", features = ["derive"] }

@@ -7,8 +7,8 @@ authors.workspace = true
 license.workspace = true
 repository.workspace = true
 homepage.workspace = true
-description = "Command line interface for managing environment variables"
-keywords = ["envx", "cli", "command line", "tool"]
+description = "Command-line interface for envx environment variable manager"
+keywords = ["envx", "cli", "tool"]
 readme = "README.md"
 
 [dependencies]

@@ -7,7 +7,7 @@ authors.workspace = true
 license.workspace = true
 repository.workspace = true
 homepage.workspace = true
-description = "Core library for Envx"
+description = "Core functionality for envx - environment variable management"
 keywords = ["core", "envx", "domain", "library"]
 readme = "README.md"
 

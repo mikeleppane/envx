@@ -1,15 +1,15 @@
 [package]
-name = "envx"
+name = "envex"
 version = "0.2.0"
 edition = "2024"
 rust-version = "1.85"
 authors = ["Mikko Leppänen <mleppan23@gmail.com>"]
 license = "MIT"
-repository = "https://github.com/mikeleppane/visualvault"
-homepage = "https://github.com/mikeleppane/visualvault"
-description = "A secure, local-first secrets manager with encrypted storage and zero-knowledge architecture"
-keywords = ["password", "manager", "vault", "secrets", "security"]
-categories = ["command-line-utilities", "cryptography"]
+repository = "https://github.com/mikeleppane/envx"
+homepage = "https://github.com/mikeleppane/envx"
+description = "A modern, cross-platform environment variable manager with TUI and CLI interfaces"
+keywords = ["environment", "env", "cli", "tui", "cross-platform"]
+categories = ["command-line-utilities", "development-tools"]
 readme = "../../README.md"
 
 

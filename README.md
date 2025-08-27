@@ -37,7 +37,7 @@ and comprehensive command-line interface.
 - **📊 Source Tracking**: Distinguish between System, User, Process, Shell, and Application variables
 - **📝 Multi-line Support**: Edit complex environment variables with proper multi-line support
 - **🔄 Import/Export**: Support for multiple formats (JSON, YAML, TOML, ENV)
-- **🕒 History Tracking**: Track changes and rollback when needed
+- **📸 Snapshots & Profiles Feature Implementation**: Save and restore variable states
 - **⚡ Performance**: Built with Rust for blazing-fast performance
 - **🎨 Cross-platform**: Works on Windows, macOS, and Linux
 

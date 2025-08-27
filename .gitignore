@@ -69,3 +69,4 @@ audit.json
 
 /venv
 .venv
+.mypy_cache

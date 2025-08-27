@@ -17,6 +17,9 @@ pub enum EnvxError {
     #[error("Serialization error: {0}")]
     Serialization(#[from] serde_json::Error),
 
+    #[error("Invalid variable name: {0}")]
+    InvalidName(String),
+
     #[error("Other error: {0}")]
     Other(String),
 }

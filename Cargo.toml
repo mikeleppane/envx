@@ -3,7 +3,7 @@ members = ["crates/core", "crates/tui", "crates/cli", "crates/envx"]
 resolver = "2"
 
 [workspace.package]
-version = "0.1.0"
+version = "0.2.0"
 edition = "2024"
 rust-version = "1.85"
 authors = ["Mikko Leppänen <mleppan23@gmail.com>"]
@@ -30,6 +30,7 @@ uuid = { version = "1.18.0", features = ["v4", "serde"] }
 color-eyre = "0.6.5"
 regex = "1.11"
 tempfile = "3.21.0"
+dirs = "6.0.0"
 
 # TUI dependencies
 ratatui = "0.29.0"

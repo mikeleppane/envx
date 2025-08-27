@@ -215,6 +215,22 @@ impl EnvVarManager {
     /// - File system operations fail when modifying shell configuration files on Unix
     /// - Other platform-specific environment variable persistence operations fail
     pub fn set(&mut self, name: &str, value: &str, permanent: bool) -> Result<()> {
+        if name.is_empty() {
+            return Err(EnvxError::InvalidName("Variable name cannot be empty".to_string()).into());
+        }
+
+        if name.contains('=') {
+            return Err(EnvxError::InvalidName(format!("Variable name '{name}' cannot contain '='")).into());
+        }
+
+        #[cfg(windows)]
+        {
+            // Windows-specific validation
+            if name.contains('\0') {
+                return Err(EnvxError::InvalidName("Variable name cannot contain null character".to_string()).into());
+            }
+        }
+
         let old_var = self.vars.get(name).cloned();
 
         // Record history
@@ -394,6 +410,10 @@ impl EnvVarManager {
             }
         }
         Ok(())
+    }
+
+    pub fn clear(&mut self) {
+        self.vars.clear();
     }
 }
 fn wildcard_to_regex(pattern: &str) -> String {

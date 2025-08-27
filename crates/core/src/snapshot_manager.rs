@@ -1,4 +1,4 @@
-use crate::snaphot::Snapshot;
+use crate::snapshot::Snapshot;
 use crate::{EnvVar, EnvVarManager};
 use color_eyre::Result;
 use color_eyre::eyre::eyre;

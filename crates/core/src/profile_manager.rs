@@ -1,5 +1,5 @@
 use crate::EnvVarManager;
-use crate::snaphot::Profile;
+use crate::snapshot::Profile;
 use color_eyre::Result;
 use color_eyre::eyre::eyre;
 use serde::{Deserialize, Serialize};

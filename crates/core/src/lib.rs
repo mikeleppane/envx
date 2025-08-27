@@ -6,7 +6,7 @@ pub mod history;
 pub mod importer;
 pub mod path;
 pub mod profile_manager;
-pub mod snaphot;
+pub mod snapshot;
 pub mod snapshot_manager;
 
 pub use analysis::{Analyzer, PathAnalyzer, ValidationResult};
@@ -17,5 +17,5 @@ pub use history::{History, HistoryEntry};
 pub use importer::{ImportFormat, Importer};
 pub use path::PathManager;
 pub use profile_manager::ProfileManager;
-pub use snaphot::{Profile, ProfileVar, Snapshot};
+pub use snapshot::{Profile, ProfileVar, Snapshot};
 pub use snapshot_manager::SnapshotManager;

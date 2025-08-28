@@ -22,6 +22,7 @@ uuid = { workspace = true }
 color-eyre = { workspace = true }
 regex = { workspace = true }
 dirs = { workspace = true }
+serde_yaml = { workspace = true }
 
 [target.'cfg(windows)'.dependencies]
 winreg = { workspace = true }

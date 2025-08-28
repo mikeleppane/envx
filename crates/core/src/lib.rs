@@ -6,6 +6,8 @@ pub mod history;
 pub mod importer;
 pub mod path;
 pub mod profile_manager;
+pub mod project_config;
+pub mod project_manager;
 pub mod snapshot;
 pub mod snapshot_manager;
 
@@ -17,5 +19,7 @@ pub use history::{History, HistoryEntry};
 pub use importer::{ImportFormat, Importer};
 pub use path::PathManager;
 pub use profile_manager::ProfileManager;
+pub use project_config::{ProjectConfig, RequiredVar};
+pub use project_manager::{ProjectManager, ValidationReport};
 pub use snapshot::{Profile, ProfileVar, Snapshot};
 pub use snapshot_manager::SnapshotManager;

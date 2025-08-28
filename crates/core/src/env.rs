@@ -317,9 +317,9 @@ impl EnvVarManager {
 
     /// Deletes an environment variable by name.
     ///
-    /// This method removes the variable from both the manager's internal state
-    /// and the current process environment. The operation is recorded in the
-    /// history for potential undo operations.
+    /// This method removes the variable from both the manager's internal state,
+    /// the current process environment, and the system environment (if it was
+    /// a permanent variable).
     ///
     /// # Errors
     ///
@@ -333,11 +333,27 @@ impl EnvVarManager {
         self.history.push(crate::history::HistoryEntry::new(
             crate::history::HistoryAction::Delete {
                 name: name.to_string(),
-                old_value: old_var.value,
+                old_value: old_var.value.clone(),
             },
         ));
 
+        // Remove from current process
         unsafe { std::env::remove_var(name) };
+
+        // Remove from system if it was a permanent variable
+        match old_var.source {
+            EnvVarSource::System | EnvVarSource::User => {
+                #[cfg(windows)]
+                delete_windows_var(name, matches!(old_var.source, EnvVarSource::System));
+
+                #[cfg(unix)]
+                delete_unix_var(name);
+            }
+            _ => {
+                // Process, Shell, or Application variables don't need system removal
+            }
+        }
+
         Ok(())
     }
 
@@ -415,6 +431,191 @@ impl EnvVarManager {
     pub fn clear(&mut self) {
         self.vars.clear();
     }
+
+    /// Rename environment variables based on pattern
+    /// Supports wildcards (*) for batch renaming
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if:
+    /// - The pattern contains multiple wildcards (not supported)
+    /// - A target variable name already exists when attempting to rename
+    /// - The source variable specified by the pattern doesn't exist (for exact matches)
+    /// - System-level operations fail when updating environment variables
+    pub fn rename(&mut self, pattern: &str, replacement: &str) -> Result<Vec<(String, String)>> {
+        let mut renamed = Vec::new();
+
+        if pattern.contains('*') {
+            // Wildcard rename
+            let (prefix, suffix) = split_wildcard_pattern(pattern)?;
+            let (new_prefix, new_suffix) = split_wildcard_pattern(replacement)?;
+
+            // Find all matching variables
+            let matching_vars: Vec<(String, EnvVar)> = self
+                .vars
+                .iter()
+                .filter(|(name, _)| {
+                    name.starts_with(&prefix) && name.ends_with(&suffix) && name.len() >= prefix.len() + suffix.len()
+                })
+                .map(|(k, v)| (k.clone(), v.clone()))
+                .collect();
+
+            for (old_name, var) in matching_vars {
+                // Extract the middle part that the wildcard matched
+                let middle = &old_name[prefix.len()..old_name.len() - suffix.len()];
+                let new_name = format!("{new_prefix}{middle}{new_suffix}");
+
+                // Check if new name already exists
+                if self.vars.contains_key(&new_name) {
+                    return Err(EnvxError::Other(format!(
+                        "Cannot rename '{old_name}' to '{new_name}': target variable already exists"
+                    ))
+                    .into());
+                }
+
+                // Set new variable (this handles system updates)
+                self.set(&new_name, &var.value, true)?;
+
+                // Delete old variable (this also handles system updates)
+                self.delete(&old_name)?;
+
+                renamed.push((old_name, new_name));
+            }
+        } else {
+            // Exact match rename
+            if let Some(var) = self.vars.get(pattern).cloned() {
+                if self.vars.contains_key(replacement) {
+                    return Err(EnvxError::Other(format!(
+                        "Cannot rename '{pattern}' to '{replacement}': target variable already exists"
+                    ))
+                    .into());
+                }
+
+                // Set new variable
+                self.set(replacement, &var.value, true)?;
+
+                // Delete old variable
+                self.delete(pattern)?;
+
+                renamed.push((pattern.to_string(), replacement.to_string()));
+            } else {
+                return Err(EnvxError::Other(format!("Variable '{pattern}' not found")).into());
+            }
+        }
+
+        Ok(renamed)
+    }
+
+    /// Replace the value of environment variables matching a pattern
+    ///
+    /// # Arguments
+    /// * `pattern` - Variable name pattern (supports wildcards with *)
+    /// * `new_value` - The new value to set
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if:
+    /// - The pattern contains multiple wildcards (not supported)
+    /// - System-level operations fail when updating environment variables
+    pub fn replace(&mut self, pattern: &str, new_value: &str) -> Result<Vec<(String, String, String)>> {
+        let mut replaced = Vec::new();
+
+        if pattern.contains('*') {
+            // Wildcard pattern
+            let (prefix, suffix) = split_wildcard_pattern(pattern)?;
+
+            // Find all matching variables
+            let matching_vars: Vec<(String, String)> = self
+                .vars
+                .iter()
+                .filter(|(name, _)| {
+                    name.starts_with(&prefix) && name.ends_with(&suffix) && name.len() >= prefix.len() + suffix.len()
+                })
+                .map(|(name, var)| (name.clone(), var.value.clone()))
+                .collect();
+
+            for (name, old_value) in matching_vars {
+                self.set(&name, new_value, true)?;
+                replaced.push((name, old_value, new_value.to_string()));
+            }
+        } else {
+            // Exact match
+            if let Some(var) = self.vars.get(pattern).cloned() {
+                let old_value = var.value;
+                self.set(pattern, new_value, true)?;
+                replaced.push((pattern.to_string(), old_value, new_value.to_string()));
+            } else {
+                return Err(EnvxError::VarNotFound(pattern.to_string()).into());
+            }
+        }
+
+        Ok(replaced)
+    }
+
+    /// Find and replace text within environment variable values
+    ///
+    /// # Arguments
+    /// * `search` - Text to search for in values
+    /// * `replacement` - Text to replace with
+    /// * `pattern` - Optional variable name pattern to limit the search (supports wildcards)
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if:
+    /// - The pattern contains multiple wildcards (not supported)
+    /// - System-level operations fail when updating environment variables
+    pub fn find_replace(
+        &mut self,
+        search: &str,
+        replacement: &str,
+        pattern: Option<&str>,
+    ) -> Result<Vec<(String, String, String)>> {
+        let mut replaced = Vec::new();
+
+        let vars_to_update: Vec<(String, EnvVar)> = if let Some(pat) = pattern {
+            // Filter by pattern
+            if pat.contains('*') {
+                let (prefix, suffix) = split_wildcard_pattern(pat)?;
+                self.vars
+                    .iter()
+                    .filter(|(name, _)| {
+                        name.starts_with(&prefix)
+                            && name.ends_with(&suffix)
+                            && name.len() >= prefix.len() + suffix.len()
+                    })
+                    .filter(|(_, var)| var.value.contains(search))
+                    .map(|(k, v)| (k.clone(), v.clone()))
+                    .collect()
+            } else {
+                // Exact match pattern
+                self.vars
+                    .iter()
+                    .filter(|(name, _)| name == &pat)
+                    .filter(|(_, var)| var.value.contains(search))
+                    .map(|(k, v)| (k.clone(), v.clone()))
+                    .collect()
+            }
+        } else {
+            // All variables containing the search string
+            self.vars
+                .iter()
+                .filter(|(_, var)| var.value.contains(search))
+                .map(|(k, v)| (k.clone(), v.clone()))
+                .collect()
+        };
+
+        for (name, var) in vars_to_update {
+            let old_value = var.value.clone();
+            let new_value = var.value.replace(search, replacement);
+
+            // Use set method which handles all updates including system
+            self.set(&name, &new_value, true)?;
+
+            replaced.push((name, old_value, new_value));
+        }
+
+        Ok(replaced)
+    }
 }
 fn wildcard_to_regex(pattern: &str) -> String {
     let mut regex = String::new();
@@ -434,6 +635,80 @@ fn wildcard_to_regex(pattern: &str) -> String {
 
     regex.push('$');
     regex
+}
+
+/// Split a wildcard pattern into prefix and suffix
+///
+/// # Errors
+///
+/// Returns an error if the pattern contains multiple wildcards (not supported).
+pub fn split_wildcard_pattern(pattern: &str) -> Result<(String, String)> {
+    if let Some(pos) = pattern.find('*') {
+        let prefix = pattern[..pos].to_string();
+        let suffix = pattern[pos + 1..].to_string();
+
+        // Ensure only one wildcard
+        if suffix.contains('*') {
+            return Err(EnvxError::Other("Multiple wildcards not supported".to_string()).into());
+        }
+
+        Ok((prefix, suffix))
+    } else {
+        Ok((pattern.to_string(), String::new()))
+    }
+}
+
+#[cfg(windows)]
+fn delete_windows_var(name: &str, system: bool) {
+    use winreg::RegKey;
+    use winreg::enums::{HKEY_CURRENT_USER, HKEY_LOCAL_MACHINE, KEY_SET_VALUE};
+
+    let (key, subkey) = if system {
+        (
+            HKEY_LOCAL_MACHINE,
+            "System\\CurrentControlSet\\Control\\Session Manager\\Environment",
+        )
+    } else {
+        (HKEY_CURRENT_USER, "Environment")
+    };
+
+    let hkey = RegKey::predef(key);
+    match hkey.open_subkey_with_flags(subkey, KEY_SET_VALUE) {
+        Ok(env_key) => {
+            match env_key.delete_value(name) {
+                Ok(()) => {
+                    // Broadcast WM_SETTINGCHANGE to notify other processes
+                    // (commented out as in set_windows_var)
+                }
+                Err(e) => {
+                    // Variable might not exist in registry even though it was in our list
+                    // This is not necessarily an error
+                    tracing::debug!("Could not delete {} from registry: {}", name, e);
+                }
+            }
+        }
+        Err(e) => {
+            if system {
+                // System variables require admin privileges
+                tracing::warn!(
+                    "Cannot delete system variable {} (requires admin privileges): {}",
+                    name,
+                    e
+                );
+            }
+            // Continue anyway - we've at least removed it from the current process
+        }
+    }
+}
+
+#[cfg(unix)]
+fn delete_unix_var(name: &str) {
+    // On Unix, we'd typically need to modify shell config files
+    // This is a simplified version - real implementation would handle
+    // .bashrc, .zshrc, etc.
+    println!("Note: To permanently remove this on Unix, remove from your shell config:");
+    println!("unset {name}");
+    println!("And remove any 'export {name}=...' lines from .bashrc/.zshrc/etc.");
 }
 
 #[cfg(test)]
@@ -940,5 +1215,185 @@ mod tests {
         // Third set - original value is v2
         manager.set("TRACK_VAR", "v3", false).unwrap();
         assert_eq!(manager.get("TRACK_VAR").unwrap().original_value, Some("v2".to_string()));
+    }
+
+    #[test]
+    fn test_rename_exact_match() {
+        let mut manager = EnvVarManager::new();
+        manager.set("OLD_VAR", "value", false).unwrap();
+
+        let renamed = manager.rename("OLD_VAR", "NEW_VAR").unwrap();
+
+        assert_eq!(renamed.len(), 1);
+        assert_eq!(renamed[0], ("OLD_VAR".to_string(), "NEW_VAR".to_string()));
+
+        assert!(manager.get("OLD_VAR").is_none());
+        assert_eq!(manager.get("NEW_VAR").unwrap().value, "value");
+    }
+
+    #[test]
+    fn test_rename_wildcard_prefix() {
+        let mut manager = EnvVarManager::new();
+        manager.set("APP_VAR1", "value1", false).unwrap();
+        manager.set("APP_VAR2", "value2", false).unwrap();
+        manager.set("OTHER_VAR", "other", false).unwrap();
+
+        let renamed = manager.rename("APP_*", "MY_APP_*").unwrap();
+
+        assert_eq!(renamed.len(), 2);
+        assert!(manager.get("MY_APP_VAR1").is_some());
+        assert!(manager.get("MY_APP_VAR2").is_some());
+        assert!(manager.get("APP_VAR1").is_none());
+        assert!(manager.get("APP_VAR2").is_none());
+        assert!(manager.get("OTHER_VAR").is_some());
+    }
+
+    #[test]
+    fn test_rename_target_exists_error() {
+        let mut manager = EnvVarManager::new();
+        manager.set("VAR1", "value1", false).unwrap();
+        manager.set("VAR2", "value2", false).unwrap();
+
+        let result = manager.rename("VAR1", "VAR2");
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("already exists"));
+    }
+
+    #[test]
+    fn test_rename_not_found_error() {
+        let mut manager = EnvVarManager::new();
+
+        let result = manager.rename("NONEXISTENT", "NEW_VAR");
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("not found"));
+    }
+
+    #[test]
+    fn test_replace_single_variable() {
+        let mut manager = EnvVarManager::new();
+        manager.set("MY_VAR", "old_value", false).unwrap();
+
+        let replaced = manager.replace("MY_VAR", "new_value").unwrap();
+
+        assert_eq!(replaced.len(), 1);
+        assert_eq!(
+            replaced[0],
+            ("MY_VAR".to_string(), "old_value".to_string(), "new_value".to_string())
+        );
+        assert_eq!(manager.get("MY_VAR").unwrap().value, "new_value");
+    }
+
+    #[test]
+    fn test_replace_wildcard_pattern() {
+        let mut manager = EnvVarManager::new();
+        manager.set("API_KEY", "old_key", false).unwrap();
+        manager.set("API_SECRET", "old_secret", false).unwrap();
+        manager.set("OTHER_VAR", "other", false).unwrap();
+
+        let replaced = manager.replace("API_*", "REDACTED").unwrap();
+
+        assert_eq!(replaced.len(), 2);
+        assert_eq!(manager.get("API_KEY").unwrap().value, "REDACTED");
+        assert_eq!(manager.get("API_SECRET").unwrap().value, "REDACTED");
+        assert_eq!(manager.get("OTHER_VAR").unwrap().value, "other");
+    }
+
+    #[test]
+    fn test_replace_not_found() {
+        let mut manager = EnvVarManager::new();
+
+        let result = manager.replace("NONEXISTENT", "value");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_find_replace_in_values() {
+        let mut manager = EnvVarManager::new();
+        manager.set("DATABASE_URL", "localhost:5432", false).unwrap();
+        manager.set("API_URL", "localhost:8080", false).unwrap();
+
+        let replaced = manager
+            .find_replace("localhost", "production.server.com", None)
+            .unwrap();
+
+        assert_eq!(replaced.len(), 2);
+        assert_eq!(manager.get("DATABASE_URL").unwrap().value, "production.server.com:5432");
+        assert_eq!(manager.get("API_URL").unwrap().value, "production.server.com:8080");
+    }
+
+    #[test]
+    fn test_split_wildcard_pattern() {
+        assert_eq!(
+            split_wildcard_pattern("APP_*").unwrap(),
+            ("APP_".to_string(), String::new())
+        );
+        assert_eq!(
+            split_wildcard_pattern("*_SUFFIX").unwrap(),
+            (String::new(), "_SUFFIX".to_string())
+        );
+        assert_eq!(
+            split_wildcard_pattern("PREFIX_*_SUFFIX").unwrap(),
+            ("PREFIX_".to_string(), "_SUFFIX".to_string())
+        );
+        assert_eq!(
+            split_wildcard_pattern("NO_WILDCARD").unwrap(),
+            ("NO_WILDCARD".to_string(), String::new())
+        );
+
+        // Multiple wildcards should error
+        assert!(split_wildcard_pattern("*_*").is_err());
+    }
+
+    #[test]
+    fn test_delete_permanent_variable() {
+        let mut manager = EnvVarManager::new();
+
+        // Set a permanent variable (this would normally write to registry/shell config)
+        manager.set("DELETE_PERM_TEST", "value", true).unwrap();
+
+        // Verify it exists
+        assert!(manager.get("DELETE_PERM_TEST").is_some());
+        assert_eq!(std::env::var("DELETE_PERM_TEST").unwrap(), "value");
+
+        // Delete it
+        manager.delete("DELETE_PERM_TEST").unwrap();
+
+        // Verify it's gone from manager
+        assert!(manager.get("DELETE_PERM_TEST").is_none());
+
+        // Verify it's gone from process environment
+        assert!(std::env::var("DELETE_PERM_TEST").is_err());
+
+        // Note: We can't easily test registry deletion in unit tests,
+        // but the implementation will handle it
+    }
+
+    #[test]
+    fn test_delete_tracks_source() {
+        let mut manager = EnvVarManager::new();
+
+        // Add variables with different sources
+        manager.vars.insert(
+            "SYS_VAR".to_string(),
+            create_test_var("SYS_VAR", "sys_value", EnvVarSource::System),
+        );
+        manager.vars.insert(
+            "USER_VAR".to_string(),
+            create_test_var("USER_VAR", "user_value", EnvVarSource::User),
+        );
+        manager.vars.insert(
+            "PROC_VAR".to_string(),
+            create_test_var("PROC_VAR", "proc_value", EnvVarSource::Process),
+        );
+
+        // Delete each type - only System and User should trigger system deletion
+        assert!(manager.delete("SYS_VAR").is_ok());
+        assert!(manager.delete("USER_VAR").is_ok());
+        assert!(manager.delete("PROC_VAR").is_ok());
+
+        // All should be removed from manager
+        assert!(manager.get("SYS_VAR").is_none());
+        assert!(manager.get("USER_VAR").is_none());
+        assert!(manager.get("PROC_VAR").is_none());
     }
 }

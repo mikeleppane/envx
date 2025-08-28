@@ -388,6 +388,210 @@ envx snapshot restore "pre-deployment-v1.2"
 envx snapshot diff "pre-deployment-v1.2" "current"
 ```
 
+#### `project` - Manage project-specific configuration
+
+```bash
+Manage project-specific configuration
+
+Usage: envx.exe project <COMMAND>
+
+Commands:
+  init     Initialize a new project configuration
+  apply    Apply project configuration
+  check    Validate project configuration
+  edit     Edit project configuration
+  info     Show project information
+  run      Run a project script
+  require  Add a required variable
+  help     Print this message or the help of the given subcommand(s)
+
+Options:
+  -h, --help  Print help
+```
+
+##### Usage Example
+
+```bash
+# Initialize a new project
+cd my-project
+envx init --name "My Web App"
+
+# Add required variables
+envx project require DATABASE_URL --description "PostgreSQL connection" --pattern "^postgresql://.*"
+envx project require API_KEY --description "API authentication key"
+
+# Edit configuration
+envx project edit
+
+# Check if all required variables are set
+envx project check
+
+# Apply configuration
+envx project apply
+
+# Run a project script
+envx project run dev
+```
+
+##### Example Configuration File
+
+Here's what a typical .envx/config.yaml would look like:
+
+```yaml
+name: my-web-app
+description: Production web application
+
+# Required environment variables
+required:
+  - name: DATABASE_URL
+    description: PostgreSQL connection string
+    pattern: "^postgresql://.*"
+    example: "postgresql://user:pass@localhost/dbname"
+  
+  - name: API_KEY
+    description: External API authentication key
+    
+  - name: PORT
+    description: Server port number
+    pattern: "^[0-9]+$"
+    example: "3000"
+
+# Default values (if not already set)
+defaults:
+  NODE_ENV: development
+  LOG_LEVEL: info
+  PORT: "3000"
+
+# Files to auto-load (in order)
+auto_load:
+  - .env
+  - .env.local
+  - .env.${NODE_ENV}
+
+# Profile to activate
+profile: dev
+
+# Scripts for common tasks
+scripts:
+  dev:
+    description: Start development server
+    run: npm run dev
+    env:
+      NODE_ENV: development
+      DEBUG: "true"
+  
+  test:
+    description: Run tests
+    run: npm test
+    env:
+      NODE_ENV: test
+  
+  migrate:
+    description: Run database migrations
+    run: npm run migrate
+
+# Validation rules
+validation:
+  warn_unused: true
+  strict_names: true
+  patterns:
+    "*_URL": "^https?://.*"
+    "*_PORT": "^[0-9]{1,5}$"
+```
+
+```bash
+# Create a snapshot before deployment
+envx snapshot create "pre-deployment-v1.2"
+
+# Restore if something goes wrong
+envx snapshot restore "pre-deployment-v1.2"
+
+# Compare snapshots
+envx snapshot diff "pre-deployment-v1.2" "current"
+```
+
+#### `rename` - Rename environment variables (supports wildcards)
+
+```bash
+Rename environment variables (supports wildcards)
+
+Usage: envx.exe rename [OPTIONS] <PATTERN> <REPLACEMENT>
+
+Arguments:
+  <PATTERN>      Pattern to match (supports wildcards with *)
+  <REPLACEMENT>  New name or pattern
+
+Options:
+      --dry-run  Dry run - show what would be renamed without making changes
+  -h, --help     Print help
+```
+
+##### Example Usage
+
+```bash
+# Rename single variable
+envx rename MY_API MY_API2
+
+# Rename with wildcards
+envx rename APP_* MY_APP_*
+envx rename *_OLD *_NEW
+envx rename TEST_* PROD_*
+
+# Dry run to preview changes
+envx rename APP_* MY_APP_* --dry-run
+```
+
+#### `replace` - Replace environment variable values
+
+```bash
+Replace environment variable values
+
+Usage: envx.exe replace [OPTIONS] <PATTERN> <VALUE>
+
+Arguments:
+  <PATTERN>  Variable name or pattern (supports wildcards with *)
+  <VALUE>    New value to set
+
+Options:
+      --dry-run  Dry run - show what would be replaced without making changes
+  -h, --help     Print help
+```
+
+##### Example Usage
+
+```bash
+envx replace MY_VAR "new value"
+envx replace API_* REDACTED
+```
+
+#### `find-replace` - Find and replace text within environment variable values
+
+```bash
+Find and replace text within environment variable values
+
+Usage: envx.exe find-replace [OPTIONS] <SEARCH> <REPLACEMENT>
+
+Arguments:
+  <SEARCH>       Text to search for in values
+  <REPLACEMENT>  Text to replace with
+
+Options:
+  -p, --pattern <PATTERN>  Only search in variables matching this pattern (supports wildcards)
+      --dry-run            Dry run - show what would be replaced without making changes
+  -h, --help               Print help
+```
+
+##### Example Usage
+
+```bash
+# Find and replace text within values
+envx find-replace localhost production.server.com
+envx find-replace "C:\old\path" "C:\new\path" --pattern "*_PATH"
+
+# Preview changes
+envx find-replace localhost prod.com --dry-run
+```
+
 
 ## 🎮 TUI Keyboard Shortcuts
 

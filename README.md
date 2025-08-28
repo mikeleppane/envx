@@ -38,6 +38,7 @@ and comprehensive command-line interface.
 - **📝 Multi-line Support**: Edit complex environment variables with proper multi-line support
 - **🔄 Import/Export**: Support for multiple formats (JSON, YAML, TOML, ENV)
 - **📸 Snapshots & Profiles Feature Implementation**: Save and restore variable states
+- **📁 Project Configuration**: Define required variables, defaults, and scripts for consistent team environments
 - **⚡ Performance**: Built with Rust for blazing-fast performance
 - **🎨 Cross-platform**: Works on Windows, macOS, and Linux
 

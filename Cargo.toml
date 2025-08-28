@@ -33,6 +33,7 @@ color-eyre = "0.6.5"
 regex = "1.11"
 tempfile = "3.21.0"
 dirs = "6.0.0"
+serde_yaml = "0.9.33"
 
 # TUI dependencies
 ratatui = "0.29.0"

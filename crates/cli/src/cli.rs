@@ -7,6 +7,7 @@ use comfy_table::Cell;
 use comfy_table::Color;
 use comfy_table::ContentArrangement;
 use comfy_table::Table;
+use comfy_table::presets::UTF8_FULL;
 use console::Term;
 use console::style;
 use envx_core::PathManager;
@@ -14,6 +15,7 @@ use envx_core::ProjectConfig;
 use envx_core::ProjectManager;
 use envx_core::RequiredVar;
 use envx_core::ValidationReport;
+use envx_core::env::split_wildcard_pattern;
 use envx_core::profile_manager::ProfileManager;
 use envx_core::snapshot_manager::SnapshotManager;
 use envx_core::{Analyzer, EnvVarManager, ExportFormat, Exporter, ImportFormat, Importer};
@@ -194,6 +196,15 @@ pub enum Commands {
 
     /// Manage project-specific configuration
     Project(ProjectArgs),
+
+    /// Rename environment variables (supports wildcards)
+    Rename(RenameArgs),
+
+    /// Replace environment variable values
+    Replace(ReplaceArgs),
+
+    /// Find and replace text within environment variable values
+    FindReplace(FindReplaceArgs),
 }
 
 #[derive(Subcommand)]
@@ -451,6 +462,49 @@ pub enum ProjectCommands {
     },
 }
 
+#[derive(Args)]
+pub struct RenameArgs {
+    /// Pattern to match (supports wildcards with *)
+    pub pattern: String,
+
+    /// New name or pattern
+    pub replacement: String,
+
+    /// Dry run - show what would be renamed without making changes
+    #[arg(long)]
+    pub dry_run: bool,
+}
+
+#[derive(Args)]
+pub struct ReplaceArgs {
+    /// Variable name or pattern (supports wildcards with *)
+    pub pattern: String,
+
+    /// New value to set
+    pub value: String,
+
+    /// Dry run - show what would be replaced without making changes
+    #[arg(long)]
+    pub dry_run: bool,
+}
+
+#[derive(Args)]
+pub struct FindReplaceArgs {
+    /// Text to search for in values
+    pub search: String,
+
+    /// Text to replace with
+    pub replacement: String,
+
+    /// Only search in variables matching this pattern (supports wildcards)
+    #[arg(short = 'p', long)]
+    pub pattern: Option<String>,
+
+    /// Dry run - show what would be replaced without making changes
+    #[arg(long)]
+    pub dry_run: bool,
+}
+
 /// Execute the CLI command with the given arguments.
 ///
 /// # Errors
@@ -545,6 +599,18 @@ pub fn execute(cli: Cli) -> Result<()> {
 
         Commands::Project(args) => {
             handle_project(args)?;
+        }
+
+        Commands::Rename(args) => {
+            handle_rename(&args)?;
+        }
+
+        Commands::Replace(args) => {
+            handle_replace(&args)?;
+        }
+
+        Commands::FindReplace(args) => {
+            handle_find_replace(&args)?;
         }
     }
 
@@ -1936,4 +2002,282 @@ fn print_validation_report(report: &ValidationReport) {
             println!("  - {}: {}", error.var_name, error.message);
         }
     }
+}
+
+/// Handle rename command to rename environment variables using patterns.
+///
+/// # Errors
+///
+/// This function will return an error if:
+/// - Environment variable operations fail (loading, renaming)
+/// - Pattern matching fails or produces invalid results
+/// - Variable names conflict or are invalid
+/// - File I/O operations fail when persisting changes
+/// - User input cannot be read from stdin during confirmation
+pub fn handle_rename(args: &RenameArgs) -> Result<()> {
+    let mut manager = EnvVarManager::new();
+    manager.load_all()?;
+
+    if args.dry_run {
+        // Show what would be renamed
+        let preview = preview_rename(&manager, &args.pattern, &args.replacement)?;
+
+        if preview.is_empty() {
+            println!("No variables match the pattern '{}'", args.pattern);
+        } else {
+            println!("Would rename {} variable(s):", preview.len());
+
+            let mut table = Table::new();
+            table.load_preset(UTF8_FULL);
+            table.set_header(vec!["Current Name", "New Name", "Value"]);
+
+            for (old, new, value) in preview {
+                table.add_row(vec![old, new, value]);
+            }
+
+            println!("{table}");
+            println!("\nUse without --dry-run to apply changes");
+        }
+    } else {
+        let renamed = manager.rename(&args.pattern, &args.replacement)?;
+
+        if renamed.is_empty() {
+            println!("No variables match the pattern '{}'", args.pattern);
+        } else {
+            println!("✅ Renamed {} variable(s):", renamed.len());
+
+            let mut table = Table::new();
+            table.load_preset(UTF8_FULL);
+            table.set_header(vec!["Old Name", "New Name"]);
+
+            for (old, new) in &renamed {
+                table.add_row(vec![old.clone(), new.clone()]);
+            }
+
+            println!("{table}");
+
+            #[cfg(windows)]
+            println!("\n📝 Note: You may need to restart your terminal for changes to take effect");
+        }
+    }
+
+    Ok(())
+}
+
+fn preview_rename(manager: &EnvVarManager, pattern: &str, replacement: &str) -> Result<Vec<(String, String, String)>> {
+    let mut preview = Vec::new();
+
+    if pattern.contains('*') {
+        let (prefix, suffix) = split_wildcard_pattern(pattern)?;
+        let (new_prefix, new_suffix) = split_wildcard_pattern(replacement)?;
+
+        for var in manager.list() {
+            if var.name.starts_with(&prefix)
+                && var.name.ends_with(&suffix)
+                && var.name.len() >= prefix.len() + suffix.len()
+            {
+                let middle = &var.name[prefix.len()..var.name.len() - suffix.len()];
+                let new_name = format!("{new_prefix}{middle}{new_suffix}");
+                preview.push((var.name.clone(), new_name, var.value.clone()));
+            }
+        }
+    } else if let Some(var) = manager.get(pattern) {
+        preview.push((var.name.clone(), replacement.to_string(), var.value.clone()));
+    }
+
+    Ok(preview)
+}
+
+/// Handle replace command to replace environment variable values using patterns.
+///
+/// # Errors
+///
+/// This function will return an error if:
+/// - Environment variable operations fail (loading, replacing)
+/// - Pattern matching fails or produces invalid results
+/// - File I/O operations fail when persisting changes
+/// - Wildcard pattern parsing fails
+pub fn handle_replace(args: &ReplaceArgs) -> Result<()> {
+    let mut manager = EnvVarManager::new();
+    manager.load_all()?;
+
+    if args.dry_run {
+        // Show what would be replaced
+        let preview = preview_replace(&manager, &args.pattern)?;
+
+        if preview.is_empty() {
+            println!("No variables match the pattern '{}'", args.pattern);
+        } else {
+            println!("Would update {} variable(s):", preview.len());
+
+            let mut table = Table::new();
+            table.load_preset(UTF8_FULL);
+            table.set_header(vec!["Variable", "Current Value", "New Value"]);
+
+            for (name, current) in preview {
+                table.add_row(vec![name, current, args.value.clone()]);
+            }
+
+            println!("{table}");
+            println!("\nUse without --dry-run to apply changes");
+        }
+    } else {
+        let replaced = manager.replace(&args.pattern, &args.value)?;
+
+        if replaced.is_empty() {
+            println!("No variables match the pattern '{}'", args.pattern);
+        } else {
+            println!("✅ Updated {} variable(s):", replaced.len());
+
+            let mut table = Table::new();
+            table.load_preset(UTF8_FULL);
+            table.set_header(vec!["Variable", "Old Value", "New Value"]);
+
+            for (name, old, new) in &replaced {
+                // Truncate long values for display
+                let display_old = if old.len() > 50 {
+                    format!("{}...", &old[..47])
+                } else {
+                    old.clone()
+                };
+                let display_new = if new.len() > 50 {
+                    format!("{}...", &new[..47])
+                } else {
+                    new.clone()
+                };
+                table.add_row(vec![name.clone(), display_old, display_new]);
+            }
+
+            println!("{table}");
+
+            #[cfg(windows)]
+            println!("\n📝 Note: You may need to restart your terminal for changes to take effect");
+        }
+    }
+
+    Ok(())
+}
+
+fn preview_replace(manager: &EnvVarManager, pattern: &str) -> Result<Vec<(String, String)>> {
+    let mut preview = Vec::new();
+
+    if pattern.contains('*') {
+        let (prefix, suffix) = split_wildcard_pattern(pattern)?;
+
+        for var in manager.list() {
+            if var.name.starts_with(&prefix)
+                && var.name.ends_with(&suffix)
+                && var.name.len() >= prefix.len() + suffix.len()
+            {
+                preview.push((var.name.clone(), var.value.clone()));
+            }
+        }
+    } else if let Some(var) = manager.get(pattern) {
+        preview.push((var.name.clone(), var.value.clone()));
+    }
+
+    Ok(preview)
+}
+
+/// Handle find and replace operations within environment variable values.
+///
+/// # Errors
+///
+/// This function will return an error if:
+/// - Environment variable operations fail (loading, updating)
+/// - Pattern matching fails or produces invalid results
+/// - Find and replace operations fail
+/// - File I/O operations fail when persisting changes
+/// - Wildcard pattern parsing fails
+pub fn handle_find_replace(args: &FindReplaceArgs) -> Result<()> {
+    let mut manager = EnvVarManager::new();
+    manager.load_all()?;
+
+    if args.dry_run {
+        // Show preview
+        let preview = preview_find_replace(&manager, &args.search, &args.replacement, args.pattern.as_deref())?;
+
+        if preview.is_empty() {
+            println!("No variables contain '{}'", args.search);
+        } else {
+            println!("Would update {} variable(s):", preview.len());
+
+            let mut table = Table::new();
+            table.load_preset(UTF8_FULL);
+            table.set_header(vec!["Variable", "Current Value", "New Value"]);
+
+            for (name, old, new) in preview {
+                table.add_row(vec![name, old, new]);
+            }
+
+            println!("{table}");
+            println!("\nUse without --dry-run to apply changes");
+        }
+    } else {
+        let replaced = manager.find_replace(&args.search, &args.replacement, args.pattern.as_deref())?;
+
+        if replaced.is_empty() {
+            println!("No variables contain '{}'", args.search);
+        } else {
+            println!("✅ Updated {} variable(s):", replaced.len());
+
+            let mut table = Table::new();
+            table.load_preset(UTF8_FULL);
+            table.set_header(vec!["Variable", "Old Value", "New Value"]);
+
+            for (name, old, new) in &replaced {
+                // Truncate long values
+                let display_old = if old.len() > 50 {
+                    format!("{}...", &old[..47])
+                } else {
+                    old.clone()
+                };
+                let display_new = if new.len() > 50 {
+                    format!("{}...", &new[..47])
+                } else {
+                    new.clone()
+                };
+                table.add_row(vec![name.clone(), display_old, display_new]);
+            }
+
+            println!("{table}");
+
+            #[cfg(windows)]
+            println!("\n📝 Note: You may need to restart your terminal for changes to take effect");
+        }
+    }
+
+    Ok(())
+}
+
+fn preview_find_replace(
+    manager: &EnvVarManager,
+    search: &str,
+    replacement: &str,
+    pattern: Option<&str>,
+) -> Result<Vec<(String, String, String)>> {
+    let mut preview = Vec::new();
+
+    for var in manager.list() {
+        // Check if variable matches pattern (if specified)
+        let matches_pattern = if let Some(pat) = pattern {
+            if pat.contains('*') {
+                let (prefix, suffix) = split_wildcard_pattern(pat)?;
+                var.name.starts_with(&prefix)
+                    && var.name.ends_with(&suffix)
+                    && var.name.len() >= prefix.len() + suffix.len()
+            } else {
+                var.name == pat
+            }
+        } else {
+            true
+        };
+
+        if matches_pattern && var.value.contains(search) {
+            let new_value = var.value.replace(search, replacement);
+            preview.push((var.name.clone(), var.value.clone(), new_value));
+        }
+    }
+
+    Ok(preview)
 }

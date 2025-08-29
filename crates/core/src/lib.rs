@@ -1,5 +1,6 @@
 pub mod analysis;
 pub mod env;
+mod env_watcher;
 pub mod error;
 pub mod exporter;
 pub mod history;
@@ -13,6 +14,7 @@ pub mod snapshot_manager;
 
 pub use analysis::{Analyzer, PathAnalyzer, ValidationResult};
 pub use env::{EnvVar, EnvVarManager, EnvVarSource};
+pub use env_watcher::{ChangeEvent, ChangeType, ConflictStrategy, EnvWatcher, SyncMode, WatchConfig};
 pub use error::EnvxError;
 pub use exporter::{ExportFormat, Exporter};
 pub use history::{History, HistoryEntry};

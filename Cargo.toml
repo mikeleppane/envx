@@ -3,7 +3,7 @@ members = ["crates/core", "crates/tui", "crates/cli", "crates/envx"]
 resolver = "2"
 
 [workspace.package]
-version = "0.3.0"
+version = "0.4.0"
 edition = "2024"
 rust-version = "1.85"
 authors = ["Mikko Leppänen <mleppan23@gmail.com>"]
@@ -16,9 +16,9 @@ keywords = ["environment", "env", "cli", "tui", "cross-platform"]
 categories = ["command-line-utilities", "development-tools"]
 
 [workspace.dependencies]
-envx-core = { path = "crates/core", version = "=0.3.0" }
-envx-cli = { path = "crates/cli", version = "=0.3.0" }
-envx-tui = { path = "crates/tui", version = "=0.3.0" }
+envx-core = { path = "crates/core", version = "=0.4.0" }
+envx-cli = { path = "crates/cli", version = "=0.4.0" }
+envx-tui = { path = "crates/tui", version = "=0.4.0" }
 # Common dependencies
 thiserror = "2.0.16"
 serde = { version = "1.0", features = ["derive"] }
@@ -34,12 +34,15 @@ regex = "1.11"
 tempfile = "3.21.0"
 dirs = "6.0.0"
 serde_yaml = "0.9.33"
+ctrlc = "3.4.7"
+notify = "8.2.0"
+notify-debouncer-mini = "0.7.0"
 
 # TUI dependencies
 ratatui = "0.29.0"
 crossterm = "0.29.0"
 tui-textarea = "0.7.0"
-comfy-table = "7.1"
+comfy-table = "7.2.0"
 console = "0.16.0"
 tui-input = "0.14.0"
 

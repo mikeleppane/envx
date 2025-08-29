@@ -23,6 +23,8 @@ color-eyre = { workspace = true }
 regex = { workspace = true }
 dirs = { workspace = true }
 serde_yaml = { workspace = true }
+notify = { workspace = true }
+notify-debouncer-mini = { workspace = true }
 
 [target.'cfg(windows)'.dependencies]
 winreg = { workspace = true }

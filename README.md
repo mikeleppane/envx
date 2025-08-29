@@ -39,6 +39,7 @@ and comprehensive command-line interface.
 - **🔄 Import/Export**: Support for multiple formats (JSON, YAML, TOML, ENV)
 - **📸 Snapshots & Profiles Feature Implementation**: Save and restore variable states
 - **📁 Project Configuration**: Define required variables, defaults, and scripts for consistent team environments
+- **👀 Watch Mode & Monitor**: Monitor file changes and sync automatically, track environment modifications in real-time
 - **⚡ Performance**: Built with Rust for blazing-fast performance
 - **🎨 Cross-platform**: Works on Windows, macOS, and Linux
 
@@ -593,6 +594,138 @@ envx find-replace "C:\old\path" "C:\new\path" --pattern "*_PATH"
 envx find-replace localhost prod.com --dry-run
 ```
 
+#### `watch` - Watch files for changes and auto-sync
+
+```bash
+Watch files for changes and auto-sync
+
+Usage: envx.exe watch [OPTIONS] [PATH]...
+
+Arguments:
+  [PATH]...
+          Files or directories to watch (defaults to current directory)
+
+Options:
+  -d, --direction <DIRECTION>
+          Sync direction
+
+          Possible values:
+          - file-to-system: Sync from files to system (default)
+          - system-to-file: Sync from system to files
+          - bidirectional:  Bidirectional synchronization
+
+          [default: file-to-system]
+
+  -o, --output <OUTPUT>
+          Output file for system-to-file sync
+
+  -p, --pattern <PATTERN>
+          File patterns to watch
+
+      --debounce <DEBOUNCE>
+          Debounce duration in milliseconds
+
+          [default: 300]
+
+  -l, --log <LOG>
+          Log changes to file
+
+  -v, --vars <VARS>
+          Variables to sync (sync all if not specified)
+
+  -q, --quiet
+          Quiet mode - less output
+
+  -h, --help
+          Print help (see a summary with '-h')
+```
+
+##### Example Usage
+
+```bash
+# Watch .env file and apply changes to system
+envx watch .env
+
+# Watch and sync system changes back to file
+envx watch --direction system-to-file --output backup.env
+
+# Bidirectional sync
+envx watch --direction bidirectional .env
+
+# Watch multiple files with patterns
+envx watch --pattern "*.env" --pattern "config/*.yaml"
+
+# Watch with custom settings
+envx watch .env --debounce 500ms --log changes.log
+```
+
+
+#### `monitor` - Monitor environment variable changes (read-only)
+
+```bash
+Monitor environment variable changes (read-only)
+
+Usage: envx.exe monitor [OPTIONS] [VARIABLE]...
+
+Arguments:
+  [VARIABLE]...
+          Variables to monitor (monitor all if not specified)
+
+Options:
+  -l, --log <LOG>
+          Log file path
+
+      --changes-only
+          Show only changes (hide unchanged variables)
+
+  -s, --source <SOURCE>
+          Filter by source
+
+          [possible values: system, user, process, shell]
+
+  -f, --format <FORMAT>
+          Output format
+
+          Possible values:
+          - live:       Live terminal output
+          - compact:    Compact output
+          - json-lines: JSON lines format
+
+          [default: live]
+
+      --interval <INTERVAL>
+          Check interval in seconds
+
+          [default: 2]
+
+      --show-initial
+          Show initial state
+
+      --export-report <EXPORT_REPORT>
+          Export report on exit
+
+  -h, --help
+          Print help (see a summary with '-h')
+```
+
+##### Example Usage
+
+```bash
+# Monitor all environment variables
+envx monitor
+
+# Monitor specific variables
+envx monitor PATH JAVA_HOME NODE_ENV
+
+# Show only changes (hide static vars)
+envx monitor --changes-only
+
+# Monitor with logging
+envx monitor --log audit.log
+
+# Monitor variables from specific source
+envx monitor --source system
+```
 
 ## 🎮 TUI Keyboard Shortcuts
 

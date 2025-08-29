@@ -1,5 +1,22 @@
 pub mod cli;
+mod list;
 pub mod monitor;
+mod path;
+mod profile;
+mod project;
+mod rename;
+mod replace;
+mod snapshot;
+mod watch;
 
+#[allow(clippy::wildcard_imports)]
 pub use cli::*;
+pub use list::handle_list_command;
 pub use monitor::MonitorArgs;
+pub use path::handle_path_command;
+pub use profile::{ProfileArgs, handle_profile};
+pub use project::{ProjectArgs, handle_project};
+pub use rename::{RenameArgs, handle_rename};
+pub use replace::{handle_find_replace, handle_replace};
+pub use snapshot::{SnapshotArgs, handle_snapshot};
+pub use watch::{WatchArgs, handle_watch};

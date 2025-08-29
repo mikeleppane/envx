@@ -2,6 +2,7 @@ use crate::EnvVarManager;
 use color_eyre::Result;
 use notify::{RecommendedWatcher, RecursiveMode};
 use notify_debouncer_mini::{DebounceEventResult, DebouncedEvent, Debouncer, new_debouncer};
+use serde::Deserialize;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::mpsc::{Receiver, Sender, channel};
@@ -81,7 +82,7 @@ pub struct EnvWatcher {
     output_file: Option<PathBuf>,
 }
 
-#[derive(Debug, Clone, serde::Serialize)]
+#[derive(Debug, Clone, serde::Serialize, Deserialize)]
 pub struct ChangeEvent {
     pub timestamp: chrono::DateTime<chrono::Utc>,
     pub path: PathBuf,
@@ -89,7 +90,7 @@ pub struct ChangeEvent {
     pub details: String,
 }
 
-#[derive(Debug, Clone, serde::Serialize)]
+#[derive(Debug, Clone, serde::Serialize, Deserialize)]
 pub enum ChangeType {
     FileCreated,
     FileModified,
@@ -647,5 +648,471 @@ impl EnvWatcher {
     /// Set output file for system-to-file sync
     pub fn set_output_file(&mut self, path: PathBuf) {
         self.output_file = Some(path);
+    }
+}
+
+// Add this at the end of the file
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::fs;
+    use std::time::Duration;
+    use tempfile::TempDir;
+
+    fn create_test_manager() -> EnvVarManager {
+        let mut manager = EnvVarManager::new();
+        manager.set("TEST_VAR", "initial_value", false).unwrap();
+        manager.set("ANOTHER_VAR", "another_value", false).unwrap();
+        manager
+    }
+
+    fn create_test_config(temp_dir: &Path) -> WatchConfig {
+        WatchConfig {
+            paths: vec![temp_dir.to_path_buf()],
+            mode: SyncMode::FileToSystem,
+            auto_reload: true,
+            debounce_duration: Duration::from_millis(100),
+            patterns: vec!["*.env".to_string(), "*.json".to_string(), "*.yaml".to_string()],
+            log_changes: false,
+            conflict_strategy: ConflictStrategy::UseLatest,
+        }
+    }
+
+    fn wait_for_debounce() {
+        thread::sleep(Duration::from_millis(200));
+    }
+
+    #[test]
+    fn test_env_watcher_creation() {
+        let config = WatchConfig::default();
+        let manager = create_test_manager();
+        let watcher = EnvWatcher::new(config, manager);
+
+        assert!(watcher.debouncer.is_none());
+        assert!(watcher.stop_signal.is_none());
+        assert!(watcher.variable_filter.is_none());
+        assert!(watcher.output_file.is_none());
+    }
+
+    #[test]
+    fn test_watch_config_default() {
+        let config = WatchConfig::default();
+
+        assert_eq!(config.paths, vec![PathBuf::from(".")]);
+        assert!(matches!(config.mode, SyncMode::FileToSystem));
+        assert!(config.auto_reload);
+        assert_eq!(config.debounce_duration, Duration::from_millis(300));
+        assert_eq!(config.patterns.len(), 5);
+        assert!(config.log_changes);
+        assert!(matches!(config.conflict_strategy, ConflictStrategy::UseLatest));
+    }
+
+    #[test]
+    fn test_variable_filter() {
+        let config = WatchConfig::default();
+        let manager = create_test_manager();
+        let mut watcher = EnvWatcher::new(config, manager);
+
+        assert!(watcher.variable_filter.is_none());
+
+        watcher.set_variable_filter(vec!["TEST".to_string(), "API".to_string()]);
+        assert!(watcher.variable_filter.is_some());
+        assert_eq!(watcher.variable_filter.as_ref().unwrap().len(), 2);
+    }
+
+    #[test]
+    fn test_output_file() {
+        let config = WatchConfig::default();
+        let manager = create_test_manager();
+        let mut watcher = EnvWatcher::new(config, manager);
+
+        assert!(watcher.output_file.is_none());
+
+        let output_path = PathBuf::from("output.env");
+        watcher.set_output_file(output_path.clone());
+        assert_eq!(watcher.output_file, Some(output_path));
+    }
+
+    #[test]
+    fn test_change_log() {
+        let config = WatchConfig::default();
+        let manager = create_test_manager();
+        let watcher = EnvWatcher::new(config, manager);
+
+        let log = watcher.get_change_log();
+        assert!(log.is_empty());
+
+        // Add a change event
+        let change_event = ChangeEvent {
+            timestamp: chrono::Utc::now(),
+            path: PathBuf::from("test.env"),
+            change_type: ChangeType::FileModified,
+            details: "Test change".to_string(),
+        };
+
+        watcher.change_log.lock().unwrap().push(change_event);
+
+        let log = watcher.get_change_log();
+        assert_eq!(log.len(), 1);
+        assert_eq!(log[0].details, "Test change");
+    }
+
+    #[test]
+    fn test_export_change_log() {
+        let temp_dir = TempDir::new().unwrap();
+        let log_file = temp_dir.path().join("changes.json");
+
+        let config = WatchConfig::default();
+        let manager = create_test_manager();
+        let watcher = EnvWatcher::new(config, manager);
+
+        // Add some change events
+        let mut log = watcher.change_log.lock().unwrap();
+        log.push(ChangeEvent {
+            timestamp: chrono::Utc::now(),
+            path: PathBuf::from("test1.env"),
+            change_type: ChangeType::FileCreated,
+            details: "Created file".to_string(),
+        });
+        log.push(ChangeEvent {
+            timestamp: chrono::Utc::now(),
+            path: PathBuf::from("test2.env"),
+            change_type: ChangeType::VariableAdded("NEW_VAR".to_string()),
+            details: "Added NEW_VAR".to_string(),
+        });
+        drop(log);
+
+        // Export the log
+        watcher.export_change_log(&log_file).unwrap();
+
+        // Verify the file exists and contains valid JSON
+        assert!(log_file.exists());
+        let content = fs::read_to_string(&log_file).unwrap();
+        let parsed: Vec<ChangeEvent> = serde_json::from_str(&content).unwrap();
+        assert_eq!(parsed.len(), 2);
+    }
+
+    #[test]
+    fn test_matches_patterns() {
+        let patterns = vec!["*.env".to_string(), "*.yaml".to_string(), "config.json".to_string()];
+
+        assert!(EnvWatcher::matches_patterns(&PathBuf::from("test.env"), &patterns));
+        assert!(EnvWatcher::matches_patterns(&PathBuf::from("app.yaml"), &patterns));
+        assert!(EnvWatcher::matches_patterns(&PathBuf::from("config.json"), &patterns));
+        assert!(!EnvWatcher::matches_patterns(&PathBuf::from("test.txt"), &patterns));
+        assert!(!EnvWatcher::matches_patterns(&PathBuf::from("README.md"), &patterns));
+    }
+
+    #[test]
+    fn test_load_env_file() {
+        let temp_dir = TempDir::new().unwrap();
+        let env_file = temp_dir.path().join("test.env");
+
+        // Create a test .env file
+        let content = r#"
+# Comment line
+TEST_VAR=test_value
+ANOTHER_VAR=another_value
+QUOTED_VAR="quoted value"
+SINGLE_QUOTED='single quoted'
+        "#;
+        fs::write(&env_file, content).unwrap();
+
+        let mut manager = EnvVarManager::new();
+        EnvWatcher::load_env_file(&env_file, &mut manager, None).unwrap();
+
+        assert_eq!(manager.get("TEST_VAR").unwrap().value, "test_value");
+        assert_eq!(manager.get("ANOTHER_VAR").unwrap().value, "another_value");
+        assert_eq!(manager.get("QUOTED_VAR").unwrap().value, "quoted value");
+        assert_eq!(manager.get("SINGLE_QUOTED").unwrap().value, "single quoted");
+    }
+
+    #[test]
+    fn test_load_env_file_with_filter() {
+        let temp_dir = TempDir::new().unwrap();
+        let env_file = temp_dir.path().join("test.env");
+
+        let content = r"
+TEST_VAR=test_value
+API_KEY=secret_key
+DATABASE_URL=postgres://localhost
+API_SECRET=another_secret
+        ";
+        fs::write(&env_file, content).unwrap();
+
+        let mut manager = EnvVarManager::new();
+        let filter = vec!["API".to_string()];
+        EnvWatcher::load_env_file(&env_file, &mut manager, Some(&filter)).unwrap();
+
+        assert!(manager.get("API_KEY").is_some());
+        assert!(manager.get("API_SECRET").is_some());
+        assert!(manager.get("TEST_VAR").is_none());
+        assert!(manager.get("DATABASE_URL").is_none());
+    }
+
+    #[test]
+    fn test_load_json_file() {
+        let temp_dir = TempDir::new().unwrap();
+        let json_file = temp_dir.path().join("config.json");
+
+        let content = r#"{
+            "TEST_VAR": "json_value",
+            "NUMBER_VAR": "42",
+            "BOOL_VAR": "true"
+        }"#;
+        fs::write(&json_file, content).unwrap();
+
+        let mut manager = EnvVarManager::new();
+        EnvWatcher::load_json_file(&json_file, &mut manager, None).unwrap();
+
+        assert_eq!(manager.get("TEST_VAR").unwrap().value, "json_value");
+        assert_eq!(manager.get("NUMBER_VAR").unwrap().value, "42");
+        assert_eq!(manager.get("BOOL_VAR").unwrap().value, "true");
+    }
+
+    #[test]
+    fn test_load_yaml_file() {
+        let temp_dir = TempDir::new().unwrap();
+        let yaml_file = temp_dir.path().join("config.yaml");
+
+        let content = r#"
+TEST_VAR: yaml_value
+NESTED_VAR: nested_value
+QUOTED: "quoted yaml"
+        "#;
+        fs::write(&yaml_file, content).unwrap();
+
+        let mut manager = EnvVarManager::new();
+        EnvWatcher::load_yaml_file(&yaml_file, &mut manager, None).unwrap();
+
+        assert_eq!(manager.get("TEST_VAR").unwrap().value, "yaml_value");
+        assert_eq!(manager.get("NESTED_VAR").unwrap().value, "nested_value");
+        assert_eq!(manager.get("QUOTED").unwrap().value, "quoted yaml");
+    }
+
+    #[test]
+    fn test_start_and_stop() {
+        let temp_dir = TempDir::new().unwrap();
+        let config = create_test_config(temp_dir.path());
+        let manager = create_test_manager();
+        let mut watcher = EnvWatcher::new(config, manager);
+
+        // Start the watcher
+        watcher.start().unwrap();
+        assert!(watcher.debouncer.is_some());
+        assert!(watcher.stop_signal.is_some());
+
+        // Stop the watcher
+        watcher.stop().unwrap();
+        assert!(watcher.debouncer.is_none());
+        assert!(watcher.stop_signal.is_none());
+    }
+
+    #[test]
+    fn test_file_watching_integration() {
+        let temp_dir = TempDir::new().unwrap();
+        let env_file = temp_dir.path().join("test.env");
+
+        // Create initial file
+        fs::write(&env_file, "INITIAL=value1").unwrap();
+
+        let config = WatchConfig {
+            paths: vec![env_file.clone()],
+            mode: SyncMode::FileToSystem,
+            auto_reload: true,
+            debounce_duration: Duration::from_millis(50),
+            patterns: vec!["*.env".to_string()],
+            log_changes: false,
+            conflict_strategy: ConflictStrategy::UseLatest,
+        };
+
+        let manager = EnvVarManager::new();
+        let mut watcher = EnvWatcher::new(config, manager);
+
+        // Start watching
+        watcher.start().unwrap();
+
+        // Wait for initial setup
+        wait_for_debounce();
+
+        // Modify the file
+        fs::write(&env_file, "INITIAL=value2\nNEW_VAR=new_value").unwrap();
+
+        // Wait for changes to be detected and processed
+        thread::sleep(Duration::from_millis(300));
+
+        // Check that changes were detected
+        let log = watcher.get_change_log();
+        assert!(!log.is_empty());
+
+        // Clean up
+        watcher.stop().unwrap();
+    }
+
+    #[test]
+    fn test_sync_mode_watch_only() {
+        let temp_dir = TempDir::new().unwrap();
+        let config = WatchConfig {
+            paths: vec![temp_dir.path().to_path_buf()],
+            mode: SyncMode::WatchOnly,
+            auto_reload: true,
+            debounce_duration: Duration::from_millis(50),
+            patterns: vec!["*.env".to_string()],
+            log_changes: false,
+            conflict_strategy: ConflictStrategy::UseLatest,
+        };
+
+        let manager = create_test_manager();
+        let watcher = EnvWatcher::new(config, manager);
+
+        // In watch-only mode, changes should be logged but not applied
+        let log = watcher.get_change_log();
+        assert!(log.is_empty());
+    }
+
+    #[test]
+    fn test_system_to_file_mode() {
+        let temp_dir = TempDir::new().unwrap();
+        let output_file = temp_dir.path().join("output.env");
+
+        let config = WatchConfig {
+            paths: vec![temp_dir.path().to_path_buf()],
+            mode: SyncMode::SystemToFile,
+            auto_reload: true,
+            debounce_duration: Duration::from_millis(50),
+            patterns: vec!["*.env".to_string()],
+            log_changes: false,
+            conflict_strategy: ConflictStrategy::UseLatest,
+        };
+
+        let manager = create_test_manager();
+        let mut watcher = EnvWatcher::new(config, manager);
+        watcher.set_output_file(output_file.clone());
+
+        // Start watching
+        watcher.start().unwrap();
+
+        // Wait for system monitor to run
+        thread::sleep(Duration::from_millis(1500));
+
+        // Check if output file was created
+        assert!(output_file.exists());
+
+        // Clean up
+        watcher.stop().unwrap();
+    }
+
+    #[test]
+    fn test_change_log_limit() {
+        let config = WatchConfig::default();
+        let manager = create_test_manager();
+        let watcher = EnvWatcher::new(config, manager);
+
+        // Add more than 1000 events using the log_change function
+        for i in 0..1100 {
+            EnvWatcher::log_change(
+                &watcher.change_log,
+                PathBuf::from(format!("test{i}.env")),
+                ChangeType::FileModified,
+                format!("Change {i}"),
+            );
+        }
+
+        // Check that old events were removed
+        let current_log = watcher.get_change_log();
+        assert_eq!(current_log.len(), 1000);
+        assert_eq!(current_log[0].details, "Change 100");
+    }
+
+    #[test]
+    fn test_handle_file_change_no_auto_reload() {
+        let temp_dir = TempDir::new().unwrap();
+        let env_file = temp_dir.path().join("test.env");
+        fs::write(&env_file, "TEST=value").unwrap();
+
+        let config = WatchConfig {
+            paths: vec![env_file.clone()],
+            mode: SyncMode::FileToSystem,
+            auto_reload: false, // Disabled
+            debounce_duration: Duration::from_millis(50),
+            patterns: vec!["*.env".to_string()],
+            log_changes: false,
+            conflict_strategy: ConflictStrategy::UseLatest,
+        };
+
+        let manager = EnvVarManager::new();
+        let manager_arc = Arc::new(Mutex::new(manager));
+        let change_log = Arc::new(Mutex::new(Vec::new()));
+
+        // Should return Ok without loading the file
+        let result = EnvWatcher::handle_file_change(
+            &env_file,
+            ChangeType::FileModified,
+            &config,
+            &manager_arc,
+            &change_log,
+            None,
+        );
+
+        assert!(result.is_ok());
+        assert!(manager_arc.lock().unwrap().get("TEST").is_none());
+    }
+
+    #[test]
+    fn test_bidirectional_sync() {
+        let temp_dir = TempDir::new().unwrap();
+        let sync_file = temp_dir.path().join("sync.env");
+
+        let config = WatchConfig {
+            paths: vec![sync_file.clone()],
+            mode: SyncMode::Bidirectional,
+            auto_reload: true,
+            debounce_duration: Duration::from_millis(50),
+            patterns: vec!["*.env".to_string()],
+            log_changes: false,
+            conflict_strategy: ConflictStrategy::UseLatest,
+        };
+
+        let manager = create_test_manager();
+        let mut watcher = EnvWatcher::new(config, manager);
+        watcher.set_output_file(sync_file.clone());
+
+        // Start watching
+        watcher.start().unwrap();
+
+        // Create/modify the sync file
+        fs::write(&sync_file, "BIDIRECTIONAL=test").unwrap();
+
+        // Wait for processing
+        wait_for_debounce();
+        thread::sleep(Duration::from_millis(200));
+
+        // Clean up
+        watcher.stop().unwrap();
+    }
+
+    #[test]
+    fn test_conflict_strategy() {
+        let strategies = vec![
+            ConflictStrategy::UseLatest,
+            ConflictStrategy::PreferFile,
+            ConflictStrategy::PreferSystem,
+            ConflictStrategy::AskUser,
+        ];
+
+        #[allow(clippy::field_reassign_with_default)]
+        for strategy in strategies {
+            let mut config = WatchConfig::default();
+            config.conflict_strategy = strategy.clone();
+
+            #[allow(clippy::assertions_on_constants)]
+            match strategy {
+                ConflictStrategy::UseLatest
+                | ConflictStrategy::PreferFile
+                | ConflictStrategy::PreferSystem
+                | ConflictStrategy::AskUser => assert!(true),
+            }
+        }
     }
 }

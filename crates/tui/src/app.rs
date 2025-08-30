@@ -271,7 +271,7 @@ impl App {
                             self.set_status(&format!("Error deleting variable: {e}"));
                         }
                     },
-                    ConfirmAction::Save(name, value) => match self.manager.set(&name, &value, false) {
+                    ConfirmAction::Save(name, value) => match self.manager.set(&name, &value, true) {
                         Ok(()) => {
                             self.refresh_vars()?;
                             self.set_status(&format!("Saved variable: {name}"));

@@ -8,6 +8,14 @@
 A powerful and secure environment variable manager for developers, featuring an intuitive Terminal User Interface (TUI)
 and comprehensive command-line interface.
 
+## 🎥 Introduction Video
+
+[![Watch the video](https://img.youtube.com/vi/UzrKuQQURFw/maxresdefault.jpg)](https://youtu.be/UzrKuQQURFw)
+
+<p align="center">
+  <i>Click the image above to watch a quick introduction to Envx</i>
+</p>
+
 ## 📸 Screenshots
 
 <p align="center">

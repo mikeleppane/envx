@@ -106,7 +106,7 @@ impl ProjectManager {
         // Apply defaults (only if variable not already set)
         for (name, value) in &config.defaults {
             if manager.get(name).is_none() {
-                manager.set(name, value, false)?;
+                manager.set(name, value, true)?;
             }
         }
 
@@ -222,7 +222,7 @@ impl ProjectManager {
             if let Some((key, value)) = line.split_once('=') {
                 let key = key.trim();
                 let value = value.trim().trim_matches('"').trim_matches('\'');
-                manager.set(key, value, false)?;
+                manager.set(key, value, true)?;
             }
         }
 

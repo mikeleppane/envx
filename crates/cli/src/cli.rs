@@ -1,9 +1,15 @@
+use crate::CleanupArgs;
+use crate::DepsArgs;
+use crate::DocsArgs;
 use crate::MonitorArgs;
 use crate::ProfileArgs;
 use crate::ProjectArgs;
 use crate::RenameArgs;
 use crate::SnapshotArgs;
 use crate::WatchArgs;
+use crate::handle_cleanup;
+use crate::handle_deps;
+use crate::handle_docs;
 use crate::handle_find_replace;
 use crate::handle_list_command;
 use crate::handle_path_command;
@@ -212,6 +218,15 @@ pub enum Commands {
 
     /// Monitor environment variable changes (read-only)
     Monitor(MonitorArgs),
+
+    /// Generate documentation for environment variables
+    Docs(DocsArgs),
+
+    /// Show environment variable dependencies
+    Deps(DepsArgs),
+
+    /// Remove unused environment variables
+    Cleanup(CleanupArgs),
 }
 
 #[derive(Subcommand)]
@@ -404,6 +419,18 @@ pub fn execute(cli: Cli) -> Result<()> {
 
         Commands::Monitor(args) => {
             handle_monitor(args)?;
+        }
+
+        Commands::Docs(args) => {
+            handle_docs(args)?;
+        }
+
+        Commands::Deps(args) => {
+            handle_deps(&args)?;
+        }
+
+        Commands::Cleanup(args) => {
+            handle_cleanup(&args)?;
         }
     }
 

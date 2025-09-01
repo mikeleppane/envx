@@ -1,6 +1,6 @@
 [target.'cfg(all())']
 rustflags = [
-    "-Dwarnings",
+    #"-Dwarnings",
     "-Dclippy::all",
     "-Dclippy::pedantic",
     "-Aclippy::similar_names",

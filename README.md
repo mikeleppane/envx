@@ -735,6 +735,215 @@ envx monitor --log audit.log
 envx monitor --source system
 ```
 
+## 📊 Dependency Tracking
+
+The `deps` command helps you understand how environment variables are used across your codebase.
+It can scan your source files to find variable usage, identify unused variables, and provide detailed usage statistics.
+
+### Scanning for Dependencies
+
+Scan your project to find all environment variable usage:
+
+```bash
+# Scan current directory
+envx deps scan
+
+# Scan specific directories
+envx deps scan src/ tests/ scripts/
+
+# Scan with custom ignore patterns
+envx deps scan --ignore "*.test.js" --ignore "dist/*"
+```
+
+### Show Variable Dependencies
+
+Find where specific variables are used:
+
+```bash
+# Show usage of a specific variable
+envx deps show DATABASE_URL
+
+# Example output:
+# 📊 Dependencies for 'DATABASE_URL':
+# Found 3 usage(s):
+# 
+# ╭──────────────────────┬──────┬─────────────────────────────────────╮
+# │ File                 ┆ Line ┆ Context                             │
+# ╞══════════════════════╪══════╪═════════════════════════════════════╡
+# │ src/db/connection.js ┆ 15   ┆ const url = process.env.DATABASE_URL│
+# │ config/database.py   ┆ 8    ┆ db_url = os.getenv("DATABASE_URL")  │
+# │ scripts/migrate.sh   ┆ 3    ┆ echo "Using DB: $DATABASE_URL"      │
+# ╰──────────────────────┴──────┴─────────────────────────────────────╯
+```
+
+### Find Unused Variables
+
+Identify environment variables that are defined but never used:
+
+```bash
+# Show all unused variables
+envx deps show --unused
+
+# Or use the shorthand
+envx deps --unused
+
+# Example output:
+# ⚠️  Found 2 unused environment variables:
+# ╭─────────────┬────────────────┬─────────╮
+# │ Variable    ┆ Value          ┆ Source  │
+# ╞═════════════╪════════════════╪═════════╡
+# │ OLD_API_KEY ┆ sk-old-key...  ┆ User    │
+# │ LEGACY_URL  ┆ http://old...  ┆ System  │
+# ╰─────────────┴────────────────┴─────────╯
+```
+
+### Usage Statistics
+
+Get insights into your environment variable usage patterns:
+
+```bash
+# Show usage statistics
+envx deps stats
+
+# Sort by usage count (most used first)
+envx deps stats --by-usage
+
+# Example output:
+# 📊 Environment Variable Usage Statistics:
+# 
+# ╭──────┬─────────────────┬─────────────┬───────────╮
+# │ Rank ┆ Variable        ┆ Usage Count ┆ Frequency │
+# ╞══════╪═════════════════╪═════════════╪═══════════╡
+# │ 1    ┆ DATABASE_URL    ┆ 12          ┆ 25.5%     │
+# │ 2    ┆ API_KEY         ┆ 8           ┆ 17.0%     │
+# │ 3    ┆ NODE_ENV        ┆ 6           ┆ 12.8%     │
+# ╰──────┴─────────────────┴─────────────┴───────────╯
+```
+
+### Supported File Types
+
+The dependency tracker scans the following file types:
+
+- **JavaScript/TypeScript**: `.js`, `.jsx`, `.ts`, `.tsx`, `.mjs`, `.cjs`
+- **Python**: `.py`, `.pyw`
+- **Rust**: `.rs`
+- **Go**: `.go`
+- **Java**: `.java`
+- **C#**: `.cs`
+- **C/C++**: `.c`, `.cpp`, `.cc`, `.cxx`, `.h`, `.hpp`
+- **Ruby**: `.rb`
+- **PHP**: `.php`
+- **Shell Scripts**: `.sh`, `.bash`, `.zsh`, `.fish`
+- **PowerShell**: `.ps1`, `.psm1`
+- **Batch**: `.bat`, `.cmd`
+- **Makefiles**: `Makefile`, `Makefile.*`
+
+### Output Formats
+
+All dependency commands support different output formats:
+
+```bash
+# Table format (default)
+envx deps show DATABASE_URL
+
+# JSON format for scripting
+envx deps show DATABASE_URL --format json
+
+# Simple format for parsing
+envx deps show DATABASE_URL --format simple
+```
+
+## 🗑️ Cleanup Unused Variables
+
+Remove unused environment variables safely:
+
+```bash
+# Preview what would be removed (dry run)
+envx cleanup --dry-run
+
+# Remove unused variables with confirmation
+envx cleanup
+
+# Remove without confirmation
+envx cleanup --force
+
+# Keep certain patterns when cleaning
+envx cleanup --keep "DEBUG*" --keep "*_TEST"
+
+# Scan additional paths before cleanup
+envx cleanup --paths src/ tests/ scripts/
+```
+
+## 📝 Documentation Generation
+
+Automatically generate documentation for your environment variables from your project configuration:
+
+```bash
+# Generate documentation to stdout
+envx docs
+
+# Generate to a file
+envx docs --output ENV_VARS.md
+
+# Custom title
+envx docs --title "MyApp Environment Variables"
+
+# Include only required variables
+envx docs --required-only
+```
+
+### Example Generated Documentation
+
+The `docs` command generates a markdown table with all your environment variables:
+
+```markdown
+# Environment Variables
+
+| Variable | Description | Example | Default |
+|----------|-------------|---------|---------|
+| **DATABASE_URL** | PostgreSQL connection string | `postgresql://user:pass@localhost:5432/dbname` | `None` |
+| **API_KEY** | API key for external service | `sk-1****` | `defa****` |
+| NODE_ENV | Application environment | `production` | `development` |
+| PORT | Server port | `8080` | `3000` |
+```
+
+**Note**: Required variables are shown in **bold**.
+Sensitive values (containing keywords like KEY, SECRET, PASSWORD, TOKEN) are automatically masked for security.
+
+### Documentation Features
+
+- **Automatic Discovery**: Finds variables from:
+  - Required variables in `.envx/config.yaml`
+  - Default values in configuration
+  - Variables in auto-loaded `.env` files
+  
+- **Security**: Automatically masks sensitive values
+- **Sorting**: Variables are sorted alphabetically
+- **Markdown Format**: Ready to include in your README or docs
+
+### Integration with Project Configuration
+
+The documentation is generated from your `.envx/config.yaml`:
+
+```yaml
+name: myapp
+description: My Application
+required:
+  - name: DATABASE_URL
+    description: PostgreSQL connection string
+    example: postgresql://user:pass@localhost:5432/dbname
+  - name: API_KEY
+    description: API key for external service
+    example: sk-1234567890abcdef
+defaults:
+  NODE_ENV: development
+  PORT: "3000"
+auto_load:
+  - .env
+  - .env.local
+```
+
+
 ## 🎮 TUI Keyboard Shortcuts
 
 ### Normal Mode

@@ -271,7 +271,7 @@ mod tests {
         // Test edge cases
         assert_eq!(mask_sensitive_value("KEY", ""), "****");
         assert_eq!(mask_sensitive_value("TOKEN", "abc"), "****");
-        assert_eq!(mask_sensitive_value("MIXED_SECRET_VAR", "value"), "valu****"); // spellchecker:disable-line
+        assert_eq!(mask_sensitive_value("MIXED_SECRET_VAR", "value"), "valu****"); // # spellchecker:disable-line
     }
 
     #[test]
@@ -458,7 +458,7 @@ NEW_VAR=new_value
 
         // Password should be masked
         assert!(markdown.contains("| CACHE_PASSWORD |"));
-        assert!(markdown.contains("`cach****`")); // spellchecker:disable-line
+        assert!(markdown.contains("`cach****`")); // # spellchecker:disable-line
 
         // Regular variables should not be masked
         assert!(markdown.contains("| LOG_LEVEL |"));

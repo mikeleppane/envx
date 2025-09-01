@@ -45,7 +45,7 @@ locale = "en-us"
 "sha256" = "sha256"
 "md5" = "md5"
 "valu" = "valu"
-"cache" = "cach"
+"cach" = "cach"
 
 # Project-specific terms
 "envx" = "envx"

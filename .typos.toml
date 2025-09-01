@@ -44,6 +44,8 @@ locale = "en-us"
 "blake3" = "blake3"
 "sha256" = "sha256"
 "md5" = "md5"
+"valu" = "valu"
+"cache" = "cach"
 
 # Project-specific terms
 "envx" = "envx"

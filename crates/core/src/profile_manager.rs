@@ -1,9 +1,9 @@
 use crate::EnvVarManager;
 use crate::snapshot::Profile;
+use ahash::AHashMap as HashMap;
 use color_eyre::Result;
 use color_eyre::eyre::eyre;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 use std::fs;
 use std::path::PathBuf;
 

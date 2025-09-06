@@ -1,5 +1,6 @@
 use crate::EnvVar;
-use std::collections::{HashMap, HashSet};
+use ahash::AHashMap as HashMap;
+use std::collections::HashSet;
 use std::path::Path;
 
 #[derive(Debug)]

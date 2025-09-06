@@ -1,9 +1,9 @@
+use ahash::AHashMap as HashMap;
 use clap::{Args, Subcommand};
 use color_eyre::Result;
 use comfy_table::{Table, modifiers::UTF8_ROUND_CORNERS, presets::UTF8_FULL};
 use envx_core::EnvVarManager;
 use regex::Regex;
-use std::collections::HashMap;
 use std::collections::HashSet;
 use std::fs;
 use std::path::Path;

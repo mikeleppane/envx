@@ -1,9 +1,9 @@
+use ahash::AHashMap as HashMap;
 use clap::Args;
 use color_eyre::Result;
 use color_eyre::eyre::Context;
 use color_eyre::eyre::eyre;
 use envx_core::ProjectConfig;
-use std::collections::HashMap;
 use std::fmt::Write;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -207,8 +207,8 @@ fn mask_sensitive_value(name: &str, value: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use ahash::AHashMap as HashMap;
     use envx_core::{ProjectConfig, RequiredVar, project_config::ValidationRules};
-    use std::collections::HashMap;
     use tempfile::TempDir;
 
     fn create_test_config() -> ProjectConfig {

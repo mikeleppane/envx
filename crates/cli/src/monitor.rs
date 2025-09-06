@@ -1,3 +1,4 @@
+use ahash::AHashMap as HashMap;
 use chrono::Local;
 use clap::Args;
 use clap::ValueEnum;
@@ -7,7 +8,6 @@ use comfy_table::presets::UTF8_FULL;
 use envx_core::EnvVarManager;
 use envx_core::EnvVarSource;
 use serde::Serialize;
-use std::collections::HashMap;
 use std::path::PathBuf;
 use std::time::Duration;
 
@@ -412,8 +412,8 @@ fn export_report(state: &MonitorState, path: &PathBuf) -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use ahash::AHashMap as HashMap;
     use envx_core::{EnvVar, EnvVarManager};
-    use std::collections::HashMap;
 
     // Helper function to create a test environment variable
     fn create_test_env_var(name: &str, value: &str, source: EnvVarSource) -> EnvVar {

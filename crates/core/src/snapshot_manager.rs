@@ -1,8 +1,8 @@
 use crate::snapshot::Snapshot;
 use crate::{EnvVar, EnvVarManager};
+use ahash::AHashMap as HashMap;
 use color_eyre::Result;
 use color_eyre::eyre::eyre;
-use std::collections::HashMap;
 use std::fs;
 use std::path::PathBuf;
 

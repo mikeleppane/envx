@@ -127,6 +127,89 @@ Options:
 
 ### Core Commands
 
+#### `init` - Initialize a new project with the setup wizard
+
+```bash
+Initialize a new project with interactive wizard
+
+Usage: envx.exe init [OPTIONS]
+
+Options:
+  -t, --template <TEMPLATE>  Use a specific template
+  -w, --wizard               Run interactive wizard
+      --list-templates       List available templates
+  -h, --help                 Print help
+```
+
+The `init` command launches an interactive setup wizard that helps you configure your project's environment variables.
+The wizard will:
+
+- Detect your project type (Web App, Python, Rust/Go, Docker, Microservices, or Custom)
+- Guide you through setting up environment variables with values
+- Create profiles for different environments (development, testing, production, etc.)
+- Generate `.env` files for each profile
+- Set up team collaboration features
+- Configure validation rules
+- Import existing `.env` files if found
+
+##### Example Usage
+
+```bash
+# Run the interactive setup wizard
+envx init
+
+# Skip wizard and create minimal config
+envx init --skip-wizard
+```
+
+##### What the Wizard Creates
+
+After running the wizard, you'll have:
+
+1. **Project Configuration** (`.envx/config.yaml`):
+   - Required environment variables with descriptions
+   - Default values for common variables
+   - Validation rules and patterns
+   - Auto-load configuration for .env files
+
+2. **Environment Profiles**:
+   - Separate profiles for development, testing, production, etc.
+   - Profile-specific variable values
+   - Easy switching between environments
+
+3. **`.env` Files** (optional):
+   - Generated `.env` files for each profile
+   - Pre-populated with your configured values
+   - Ready to use with your application
+
+##### Example Wizard Flow
+
+```text
+✨ Welcome to envx! Your intelligent environment variable companion
+
+This setup wizard will help you:
+  📋 Define environment variables    ─ Set up your project's environment
+  🚀 Create profiles                 ─ Configure dev, test, and production environments
+  📦 Import existing files           ─ Seamlessly migrate from .env files
+  📝 Generate .env files             ─ Create .env files for each profile
+  👥 Enable team features            ─ Share configurations with your team
+
+⏱️  Estimated time: 1-3 minutes
+💡 Tip: Press ESC at any time to exit the wizard
+
+Let's create the perfect setup for your project! 🎯
+```
+
+The wizard will guide you through:
+
+- Selecting your project type
+- Configuring environment variables with actual values
+- Creating environment profiles with custom names if needed
+- Setting up team features (optional)
+- Configuring validation rules
+
+After completion, the wizard will check if all required variables are set and provide guidance on next steps.
+
 #### `list` - List environment variables
 
 ```bash
@@ -441,6 +524,21 @@ envx project apply
 
 # Run a project script
 envx project run dev
+
+# Create a custom project file
+envx project init -f myproject.yaml --name "My Project"
+
+# Apply configuration from custom file
+envx project apply -f myproject.yaml
+
+# Check validation with custom file
+envx project check -f configs/production.yaml
+
+# Edit custom configuration
+envx project edit -f myproject.yaml
+
+# Add required variable to custom config
+envx project require API_KEY -f myproject.yaml --description "API authentication key"
 ```
 
 ##### Example Configuration File

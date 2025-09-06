@@ -25,6 +25,10 @@ dirs = { workspace = true }
 serde_yaml = { workspace = true }
 notify = { workspace = true }
 notify-debouncer-mini = { workspace = true }
+dialoguer = { workspace = true }
+glob = { workspace = true }
+colored = { workspace = true }
+ahash = { workspace = true }
 
 [target.'cfg(windows)'.dependencies]
 winreg = { workspace = true }

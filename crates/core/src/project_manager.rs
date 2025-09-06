@@ -1,6 +1,8 @@
 use crate::project_config::ProjectConfig;
-use crate::{EnvVarManager, ProfileManager};
+use crate::{EnvVarManager, ProfileManager, ValidationRules};
+use ahash::AHashMap as HashMap;
 use color_eyre::Result;
+use color_eyre::eyre::eyre;
 use regex::Regex;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -48,6 +50,45 @@ impl ProjectManager {
 
         println!("✅ Initialized envx project configuration");
         println!("📁 Created .envx/config.yaml");
+
+        Ok(())
+    }
+
+    /// Initialize a new project with a custom configuration file
+    ///
+    /// # Errors
+    ///
+    /// This function will return an error if:
+    /// - Creating parent directories fails
+    /// - Saving the configuration file fails
+    pub fn init_with_file(&self, name: Option<String>, file_path: &Path) -> Result<()> {
+        // Create parent directories if needed
+        if let Some(parent) = file_path.parent() {
+            fs::create_dir_all(parent)?;
+        }
+
+        let project_name = name
+            .or_else(|| {
+                std::env::current_dir()
+                    .ok()
+                    .and_then(|p| p.file_name().map(|s| s.to_string_lossy().into_owned()))
+            })
+            .unwrap_or_else(|| "my-project".to_string());
+
+        let config = ProjectConfig {
+            name: Some(project_name.clone()),
+            description: Some(format!("{project_name} environment configuration")),
+            required: vec![],
+            defaults: HashMap::new(),
+            auto_load: vec![".env".to_string()],
+            profile: None,
+            scripts: HashMap::new(),
+            validation: ValidationRules::default(),
+            inherit: true,
+        };
+
+        config.save(file_path)?;
+        println!("✅ Initialized project '{}' at {}", project_name, file_path.display());
 
         Ok(())
     }
@@ -109,6 +150,24 @@ impl ProjectManager {
                 manager.set(name, value, true)?;
             }
         }
+
+        Ok(())
+    }
+
+    /// Load configuration from a specific file
+    ///
+    /// # Errors
+    ///
+    /// This function will return an error if:
+    /// - The configuration file does not exist
+    /// - Loading the project configuration file fails
+    pub fn load_from_file(&mut self, file_path: &Path) -> Result<()> {
+        if !file_path.exists() {
+            return Err(eyre!("Configuration file not found: {}", file_path.display()));
+        }
+
+        self.config = Some(ProjectConfig::load(file_path)?);
+        self.config_dir = file_path.to_path_buf();
 
         Ok(())
     }
@@ -275,7 +334,7 @@ fn is_valid_var_name(name: &str) -> bool {
 mod tests {
     use super::*;
     use crate::project_config::{RequiredVar, Script};
-    use std::collections::HashMap;
+    use ahash::AHashMap as HashMap;
     use tempfile::TempDir;
 
     fn create_test_project_manager() -> (ProjectManager, TempDir) {

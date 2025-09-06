@@ -1,6 +1,6 @@
+use ahash::AHashMap as HashMap;
 use color_eyre::Result;
 use regex::Regex;
-use std::collections::HashMap;
 use std::fs;
 use std::path::Path;
 

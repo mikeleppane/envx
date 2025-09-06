@@ -22,6 +22,8 @@ use crate::handle_watch;
 use crate::monitor::handle_monitor;
 use crate::replace::FindReplaceArgs;
 use crate::replace::ReplaceArgs;
+use crate::wizard::list_templates as list_templates_func;
+use crate::wizard::run_wizard;
 use clap::{Parser, Subcommand};
 use color_eyre::Result;
 use color_eyre::eyre::eyre;
@@ -39,6 +41,20 @@ pub struct Cli {
 
 #[derive(Subcommand)]
 pub enum Commands {
+    /// Initialize a new project with interactive wizard
+    Init {
+        /// Use a specific template
+        #[arg(short, long)]
+        template: Option<String>,
+
+        /// Run interactive wizard
+        #[arg(short, long, default_value = "true")]
+        wizard: bool,
+
+        /// List available templates
+        #[arg(long)]
+        list_templates: bool,
+    },
     /// List environment variables
     List {
         /// Filter by source (system, user, process, shell)
@@ -315,6 +331,7 @@ pub enum PathAction {
 /// - User input cannot be read
 /// - Invalid command arguments are provided
 /// - TUI mode is requested (should be handled by main binary)
+#[allow(clippy::too_many_lines)]
 pub fn execute(cli: Cli) -> Result<()> {
     match cli.command {
         Commands::List {
@@ -431,6 +448,40 @@ pub fn execute(cli: Cli) -> Result<()> {
 
         Commands::Cleanup(args) => {
             handle_cleanup(&args)?;
+        }
+
+        Commands::Init {
+            template,
+            wizard,
+            list_templates,
+        } => {
+            if list_templates {
+                list_templates_func()?;
+            } else if wizard && template.is_none() {
+                match run_wizard(None) {
+                    Ok(()) => {}
+                    Err(e) => {
+                        eprintln!("Error running wizard: {e}");
+                        std::process::exit(1);
+                    }
+                }
+            } else if let Some(tmpl) = template {
+                match run_wizard(Some(tmpl)) {
+                    Ok(()) => {}
+                    Err(e) => {
+                        eprintln!("Error running wizard with template: {e}");
+                        std::process::exit(1);
+                    }
+                }
+            } else {
+                match run_wizard(None) {
+                    Ok(()) => {}
+                    Err(e) => {
+                        eprintln!("Error running wizard: {e}");
+                        std::process::exit(1);
+                    }
+                }
+            }
         }
     }
 

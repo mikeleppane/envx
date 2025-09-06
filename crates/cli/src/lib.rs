@@ -10,6 +10,7 @@ mod rename;
 mod replace;
 mod snapshot;
 mod watch;
+mod wizard;
 
 #[allow(clippy::wildcard_imports)]
 pub use cli::*;
@@ -24,3 +25,4 @@ pub use rename::{RenameArgs, handle_rename};
 pub use replace::{handle_find_replace, handle_replace};
 pub use snapshot::{SnapshotArgs, handle_snapshot};
 pub use watch::{WatchArgs, handle_watch};
+pub use wizard::{list_templates, run_wizard};

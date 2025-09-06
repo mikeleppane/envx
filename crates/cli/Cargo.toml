@@ -27,6 +27,7 @@ ctrlc = { workspace = true }
 glob = { workspace = true }
 walkdir = { workspace = true }
 regex = { workspace = true }
+ahash = { workspace = true }
 
 
 [dev-dependencies]

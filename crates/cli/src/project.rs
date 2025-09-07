@@ -26,16 +26,16 @@ pub enum ProjectCommands {
     /// Apply project configuration
     Apply {
         /// Force apply even with validation errors
-        #[arg(short, long)]
+        #[arg(long)]
         force: bool,
         /// Custom configuration file path
-        #[arg(short, long)]
+        #[arg(long)]
         file: Option<PathBuf>,
     },
     /// Validate project configuration
     Check {
         /// Custom configuration file path
-        #[arg(short, long)]
+        #[arg(long)]
         file: Option<PathBuf>,
     },
     /// Edit project configuration

@@ -56,6 +56,8 @@ pub enum ProjectCategory {
     WebApp,
     Python,
     Rust,
+    Go,
+    NextJs,
     Docker,
     Microservices,
     Custom,
@@ -494,6 +496,8 @@ impl SetupWizard {
             "Web Application (Node.js, React, etc.)",
             "Python Application",
             "Rust Application",
+            "Go Application",
+            "Next.js/Full-Stack Application",
             "Docker/Container-based",
             "Multi-service/Microservices",
             "Other/Custom",
@@ -511,8 +515,10 @@ impl SetupWizard {
             0 => Self::create_web_app_type(),
             1 => Self::create_python_type(),
             2 => Self::create_rust_type(),
-            3 => Self::create_docker_type(),
-            4 => Self::create_microservices_type(),
+            3 => Self::create_go_type(),
+            4 => Self::create_nextjs_type(),
+            5 => Self::create_docker_type(),
+            6 => Self::create_microservices_type(),
             _ => self.create_custom_type()?,
         };
 
@@ -1218,44 +1224,75 @@ impl SetupWizard {
     }
 
     fn check_required_variables(result: &SetupResult) {
-        println!("\n🔍 Checking required environment variables...");
+        println!("\n🔍 Checking environment variables...");
 
-        let mut missing_vars = Vec::new();
-        let mut set_vars = Vec::new();
+        let mut required_set = Vec::new();
+        let mut required_missing = Vec::new();
+        let mut optional_set = Vec::new();
+        let mut optional_missing = Vec::new();
 
         for var in &result.selected_vars {
-            if var.required {
-                match std::env::var(&var.name) {
-                    Ok(value) => {
-                        if value == var.value {
-                            set_vars.push(&var.name);
+            match std::env::var(&var.name) {
+                Ok(value) => {
+                    if value == var.value {
+                        if var.required {
+                            required_set.push(&var.name);
                         } else {
-                            missing_vars.push(&var.name);
+                            optional_set.push(&var.name);
                         }
+                    } else if var.required {
+                        required_missing.push(&var.name);
+                    } else {
+                        optional_missing.push(&var.name);
                     }
-                    Err(_) => missing_vars.push(&var.name),
+                }
+                Err(_) => {
+                    if var.required {
+                        required_missing.push(&var.name);
+                    } else {
+                        optional_missing.push(&var.name);
+                    }
                 }
             }
         }
 
-        if !set_vars.is_empty() {
+        // Show all set variables
+        if !required_set.is_empty() || !optional_set.is_empty() {
             println!("\n✅ Successfully set in current session:");
-            for var in set_vars {
+            for var in required_set {
+                println!("   ✓ {var} (required)");
+            }
+            for var in optional_set {
                 println!("   ✓ {var}");
             }
         }
 
-        if !missing_vars.is_empty() {
-            println!("\n⚠️  The following required variables need a terminal restart to take effect:");
-            for var in missing_vars {
-                println!("   • {var}");
+        // Show missing required variables
+        if !required_missing.is_empty() {
+            println!("\n❌ Missing required variables:");
+            for var in &required_missing {
+                println!("   • {}", *var);
             }
 
             println!("\n💡 To apply these variables:");
             println!("   1. Close and restart your terminal");
             println!("   2. Run 'envx list' to verify they are set");
             println!("   3. Or source the .env file: source .env");
-        } else if result.selected_vars.iter().any(|v| v.required) {
+        }
+
+        // Show missing optional variables (as a warning)
+        if !optional_missing.is_empty() {
+            println!("\n⚠️  Optional variables not set in current session:");
+            for var in optional_missing {
+                println!("   • {var}");
+            }
+            println!("   These are optional and can be set later if needed.");
+        }
+
+        // Overall status message
+        if required_missing.is_empty() && !result.selected_vars.iter().any(|v| v.required) {
+            println!("\n✅ All variables have been configured!");
+        } else if required_missing.is_empty() {
             println!("\n✅ All required variables are set!");
         }
 
@@ -1498,5 +1535,102 @@ impl SetupWizard {
             suggested_vars: Vec::new(), // Empty, so user can add all as custom
             suggested_profiles: vec!["development".to_string(), "production".to_string()],
         })
+    }
+
+    fn create_nextjs_type() -> ProjectType {
+        ProjectType {
+            name: "Next.js Full-Stack".to_string(),
+            category: ProjectCategory::NextJs,
+            suggested_vars: vec![
+                SuggestedVariable {
+                    name: "NEXT_PUBLIC_API_URL".to_string(),
+                    description: "Public API URL".to_string(),
+                    example: "http://localhost:3000/api".to_string(),
+                    required: true,
+                    sensitive: false,
+                },
+                SuggestedVariable {
+                    name: "DATABASE_URL".to_string(),
+                    description: "Database connection string".to_string(),
+                    example: "postgresql://localhost:5432/myapp".to_string(),
+                    required: true,
+                    sensitive: true,
+                },
+                SuggestedVariable {
+                    name: "NEXTAUTH_SECRET".to_string(),
+                    description: "NextAuth.js secret".to_string(),
+                    example: "your-secret-key".to_string(),
+                    required: true,
+                    sensitive: true,
+                },
+                SuggestedVariable {
+                    name: "NEXTAUTH_URL".to_string(),
+                    description: "NextAuth callback URL".to_string(),
+                    example: "http://localhost:3000".to_string(),
+                    required: true,
+                    sensitive: false,
+                },
+                SuggestedVariable {
+                    name: "NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY".to_string(),
+                    description: "Stripe publishable key".to_string(),
+                    example: "pk_test_...".to_string(),
+                    required: false,
+                    sensitive: false,
+                },
+            ],
+            suggested_profiles: vec![
+                "development".to_string(),
+                "preview".to_string(),
+                "production".to_string(),
+            ],
+        }
+    }
+    fn create_go_type() -> ProjectType {
+        ProjectType {
+            name: "Go Application".to_string(),
+            category: ProjectCategory::Go,
+            suggested_vars: vec![
+                SuggestedVariable {
+                    name: "GO_ENV".to_string(),
+                    description: "Go environment".to_string(),
+                    example: "development".to_string(),
+                    required: true,
+                    sensitive: false,
+                },
+                SuggestedVariable {
+                    name: "DATABASE_URL".to_string(),
+                    description: "Database connection string".to_string(),
+                    example: "postgres://localhost:5432/myapp".to_string(),
+                    required: true,
+                    sensitive: true,
+                },
+                SuggestedVariable {
+                    name: "REDIS_URL".to_string(),
+                    description: "Redis connection URL".to_string(),
+                    example: "redis://localhost:6379".to_string(),
+                    required: false,
+                    sensitive: false,
+                },
+                SuggestedVariable {
+                    name: "JWT_SECRET".to_string(),
+                    description: "JWT signing secret".to_string(),
+                    example: "your-secret-key".to_string(),
+                    required: true,
+                    sensitive: true,
+                },
+                SuggestedVariable {
+                    name: "LOG_LEVEL".to_string(),
+                    description: "Logging level".to_string(),
+                    example: "info".to_string(),
+                    required: false,
+                    sensitive: false,
+                },
+            ],
+            suggested_profiles: vec![
+                "development".to_string(),
+                "testing".to_string(),
+                "production".to_string(),
+            ],
+        }
     }
 }

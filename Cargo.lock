@@ -501,7 +501,7 @@ checksum = "34aa73646ffb006b8f5147f3dc182bd4bcb190227ce861fc4a4844bf8e3cb2c0"
 
 [[package]]
 name = "envex"
-version = "0.6.0"
+version = "0.6.1"
 dependencies = [
  "clap",
  "color-eyre",
@@ -517,7 +517,7 @@ dependencies = [
 
 [[package]]
 name = "envx-cli"
-version = "0.6.0"
+version = "0.6.1"
 dependencies = [
  "ahash",
  "chrono",
@@ -540,7 +540,7 @@ dependencies = [
 
 [[package]]
 name = "envx-core"
-version = "0.6.0"
+version = "0.6.1"
 dependencies = [
  "ahash",
  "chrono",
@@ -566,7 +566,7 @@ dependencies = [
 
 [[package]]
 name = "envx-tui"
-version = "0.6.0"
+version = "0.6.1"
 dependencies = [
  "color-eyre",
  "crossterm 0.29.0",

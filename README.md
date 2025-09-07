@@ -16,6 +16,13 @@ and comprehensive command-line interface.
   <i>Click the image above to watch a quick introduction to Envx</i>
 </p>
 
+[![Watch the video](https://img.youtube.com/vi/UzrKuQQURFw/maxresdefault.jpg)](https://youtu.be/UzrKuQQURFw)
+
+<p align="center">
+  <i>Click the image above to watch how interactive wizard works</i>
+</p>
+
+
 ## 📸 Screenshots
 
 <p align="center">
@@ -158,8 +165,9 @@ The wizard will:
 # Run the interactive setup wizard
 envx init
 
-# Skip wizard and create minimal config
-envx init --skip-wizard
+# Or
+envx init --wizard
+
 ```
 
 ##### What the Wizard Creates

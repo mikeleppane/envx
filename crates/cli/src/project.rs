@@ -231,8 +231,37 @@ pub fn handle_project(args: ProjectArgs) -> Result<()> {
             };
 
             if loaded {
-                project.run_script(&script, &mut env_manager)?;
-                println!("✅ Script '{script}' completed");
+                // First call: validate the script and get info (without executing)
+                let info = project.run_script(&script, &mut env_manager, false)?;
+
+                // Display script details for user review
+                println!("⚠️  About to execute script from project configuration:");
+                println!("   Script:  {}", info.name);
+                if let Some(desc) = &info.description {
+                    println!("   Desc:    {desc}");
+                }
+                println!("   Command: {}", info.command);
+                println!("   Source:  {}", info.config_source.display());
+                if !info.env_vars.is_empty() {
+                    println!("   Env vars that will be set:");
+                    for (name, value) in &info.env_vars {
+                        println!("     {name}={value}");
+                    }
+                }
+                println!();
+
+                // Prompt for confirmation before executing
+                eprint!("Do you want to proceed? [y/N] ");
+                let mut input = String::new();
+                std::io::stdin().read_line(&mut input)?;
+                let input = input.trim().to_lowercase();
+
+                if input == "y" || input == "yes" {
+                    project.run_script(&script, &mut env_manager, true)?;
+                    println!("✅ Script '{script}' completed");
+                } else {
+                    println!("❌ Script execution cancelled");
+                }
             } else {
                 return Err(color_eyre::eyre::eyre!("No project configuration found"));
             }

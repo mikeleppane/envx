@@ -24,7 +24,7 @@ pub use importer::{ImportFormat, Importer};
 pub use path::PathManager;
 pub use profile_manager::ProfileManager;
 pub use project_config::{ProjectConfig, RequiredVar, ValidationRules};
-pub use project_manager::{ProjectManager, ValidationReport};
+pub use project_manager::{ProjectManager, ScriptInfo, ValidationReport};
 pub use snapshot::{Profile, ProfileVar, Snapshot};
 pub use snapshot_manager::SnapshotManager;
 pub use templates::{ProjectTemplate, get_builtin_templates};
